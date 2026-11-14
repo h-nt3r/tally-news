@@ -10,6 +10,7 @@
 <meta name="theme-color" content="#0d1117" media="(prefers-color-scheme: dark)">
 <title>{title}</title>
 <link rel="stylesheet" href="{base}style.css">
+{feed_links}
 <script src="{base}app.js" defer></script>
 <script src="{base}clips.js" defer></script>
 </head><body data-page="{page}" data-base="{base}">
@@ -32,6 +33,7 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 <p>Popularity labels link to the platform itself: Mastodon's trending links, Bluesky's feed for the topic, or the Hacker News discussion.</p>
 <p>Left, center and right are one maintainer's judgment, not facts. <a href="{base}sources.html">See every source and its label.</a></p>
 <p>Numbers on this site are counts and timings you could recount by hand. <a href="{base}methods.html">How each one is made</a>, <a href="{base}archive.html">the archive of past stories</a>, and <a href="{base}data/latest.json">the data behind this page</a> as a JSON file.</p>
+{subscribe}
 <p>{source_line}</p>
 </div></footer>
 </body></html>

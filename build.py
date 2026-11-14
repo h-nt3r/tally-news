@@ -4,6 +4,7 @@
 Ranking rule (deliberately simple and visible): stories are ordered by how many
 different outlets covered them. Nothing is personalized. Nothing learns from you.
 """
+import federation
 import gzip
 import hashlib
 import html
@@ -236,9 +237,11 @@ def fetch_feed(feed, cutoff, cap):
         return []
     feed["_total"] = len(parsed.entries)
     fetched_at, future, items = datetime.now(timezone.utc), 0, []
+    social = federation.is_social_feed(feed["url"])  # Mastodon and Bluesky posts have no title of their own: use their first words
     for e in parsed.entries[:cap]:
         when = entry_time(e)
-        if not when or not e.get("title") or not e.get("link"):
+        title = e.get("title") or (federation.title_from_post(clean(e.get("summary", ""))) if social else "")
+        if not when or not title or not e.get("link"):
             continue
         if when > fetched_at + timedelta(minutes=10):
             future += 1  # a feed with a wrong clock or a scheduled post: treat as just published
@@ -246,7 +249,7 @@ def fetch_feed(feed, cutoff, cap):
         if when < cutoff:
             continue
         items.append({
-            "title": clean(e["title"]),
+            "title": clean(title),
             "link": e["link"],
             "text": clean(e.get("summary", ""))[:400],
             "when": when,
@@ -450,6 +453,7 @@ TITLES = {"us": "United States", "world": "World", "tech": "Technology"}
 TABS_ALL = [("posts", "Clips"), ("us", "US"), ("world", "World"), ("tech", "Tech"), ("watch", "Videos")]
 TABS = TABS_ALL  # rebuilt in main() from settings
 CLIPS_ON = False  # clips and posts from social accounts; off unless settings.clips = true
+FEEDS_ON = False  # Atom feeds need absolute addresses, so they are written only when settings.base_url is set
 REPO_URL, LICENSE_NAME = "", ""  # from settings.repo_url and settings.license; empty shows the footer placeholders
 SITE_URL = ""  # public address of this site, from settings.base_url; empty until it is hosted
 OPEN_WITH = {}  # set from config: open some links through privacy front ends
@@ -990,6 +994,21 @@ def wb_banner(base=""):
             f'{f" &middot; <a href={chr(34)}{base}manage.html#removed{chr(34)}>Restore</a>" if r["removed"] else ""}</p>')
 
 
+def feed_head_links(base=""):
+    """Lets feed readers find the feeds from any page."""
+    if not FEEDS_ON:
+        return ""
+    return "".join(f'<link rel="alternate" type="application/atom+xml" title="{e(SITE_NAME)}{e(t)}" href="{base}{f}">'
+                   for f, t in (("feed.xml", ""), ("breaking.xml", " · Breaking"), ("blindspots.xml", " · Blindspots")))
+
+
+def subscribe_line(base=""):
+    feeds = (f'<a href="{base}feed.xml">Atom feed</a>, <a href="{base}breaking.xml">Breaking</a> and '
+             f'<a href="{base}blindspots.xml">Blindspots</a> feeds, and ') if FEEDS_ON else ""
+    return (f'<p><b>Follow without an account:</b> {feeds}<a href="{base}sources.opml">the source list as OPML</a>. '
+            f'Add any of them to a feed reader, or to another copy of this project as a source. <a href="{base}methods.html#feeds">What is in them</a></p>')
+
+
 def fill_repo(text):
     """Fill {repo_link} and {license_link} in a template page from settings.repo_url and settings.license."""
     code = f'<a href="{e(REPO_URL)}">{e(REPO_URL.removeprefix("https://"))}</a>' if REPO_URL else '<span class="ph">not published yet</span>'
@@ -1014,6 +1033,8 @@ def page(title, key, content, built, base=""):
             .replace("{site_name}", SITE_NAME)
             .replace("{tagline}", e(TAGLINE))
             .replace("{source_line}", source_line(base))
+            .replace("{feed_links}", feed_head_links(base))
+            .replace("{subscribe}", subscribe_line(base))
             .replace("{title}", e(title))
             .replace("{page}", key)
             .replace("{built}", str(built))
@@ -1472,10 +1493,11 @@ def main():
     else:
         SITE_DIR, HIST = ROOT / "site", ROOT / "history"
     s = cfg["settings"]
-    global SITE_URL, CLIPS_ON, TABS, REPO_URL, LICENSE_NAME
+    global SITE_URL, CLIPS_ON, TABS, REPO_URL, LICENSE_NAME, FEEDS_ON
     CLIPS_ON = bool(s.get("clips", False))
     TABS = [t for t in TABS_ALL if CLIPS_ON or t[0] != "posts"]
     SITE_URL = (s.get("base_url") or "").strip()
+    FEEDS_ON = bool(SITE_URL)
     REPO_URL, LICENSE_NAME = (s.get("repo_url") or "").strip().rstrip("/"), (s.get("license") or "").strip()
     SITE_URL = SITE_URL + ("/" if SITE_URL and not SITE_URL.endswith("/") else "")
     load_feed_state()
@@ -1673,6 +1695,21 @@ def main():
     shutil.copytree(ROOT / "template" / "vendor", site / "vendor", dirs_exist_ok=True)
     for name, (title, key, content) in pages.items():
         write_atomic(site / name, page(title, key, content, built))
+
+    def write_feeds():
+        """Atom feeds of the stories and an OPML file of the sources: the open formats other tools and copies can follow."""
+        write_atomic(site / "sources.opml", federation.opml(SITE_NAME, cfg))
+        if not FEEDS_ON:
+            return
+        base = SITE_URL if SITE_URL.endswith("/") else SITE_URL + "/"
+        now_utc = datetime.now(timezone.utc)
+        shown = [st for stories_, _ in built_topics.values() for st in stories_]
+        for fn, label, sub, sts in (("feed.xml", "", "Stories grouped by how many different outlets covered them", shown),
+                                    ("breaking.xml", " \u00b7 Breaking", "Stories unfolding now, by the stated rule", brk_stories),
+                                    ("blindspots.xml", " \u00b7 Blindspots", "Stories only one side has covered so far", blind_stories)):
+            write_atomic(site / fn, federation.atom(SITE_NAME + label, sub, base, fn, sts, now_utc))
+
+    write_feeds()
     stories = sum(len(st) for st, _ in built_topics.values())
     archive_path = HIST / "archive.sqlite"
     try:  # story pages and the archive page are additive: a problem here never stops the main site
@@ -1740,6 +1777,7 @@ def main():
             built2 = int(time.time())
             write_atomic(site / "index.html", page(SITE_NAME, "news", index_content(datetime.now().strftime("%b %d, %-I:%M %p")), built2))
             write_atomic(site / "build.json", json.dumps({"built": built2, "articles": len(articles), "stories": stories}))
+            write_feeds()
             tick("front page refreshed with new summaries")
     if "--group" not in sys.argv:  # a group's pages are its own; only the main site is published, and only when publish.local.toml exists
         report = publish.run(site)

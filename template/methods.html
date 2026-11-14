@@ -45,6 +45,9 @@
 </ul>
 <p>These describe the stories on the news page, not all news. The side labels are one maintainer&rsquo;s judgment and are editable (see <a href="fork.html">Run your own</a>).</p>
 
+<h2 id="feeds">The feeds and the source list</h2>
+<p>Three Atom feeds carry the same stories as the page, so you can follow them in any feed reader or add them to another copy of this project as a source: <a href="feed.xml">feed.xml</a> (every story shown), <a href="breaking.xml">breaking.xml</a> and <a href="blindspots.xml">blindspots.xml</a>. Each entry has the story&rsquo;s neutral label, a link to its page here, how many outlets covered it and from which sides, who reported it first, and a link to every outlet&rsquo;s own article. When a machine-written summary exists it is included and marked as machine-written and possibly wrong. The categories say the topic and whether the story is Breaking or a Blindspot. <a href="sources.opml">sources.opml</a> lists every outlet this copy follows, grouped by topic, with its left, center or right label in a <code>tally:side</code> attribute; those labels are one maintainer&rsquo;s judgment, so another copy can import the list and change them.</p>
+<p>The feeds are only written when the copy has a public address set (<code>base_url</code> in <code>config/sources.toml</code>), because a feed needs full addresses. Headlines and links belong to their publishers; the feeds say so in their rights line.</p>
 <h2 id="blindspots">What counts as a blindspot</h2>
 <p>A story is listed under Blindspots when all of these are true, and nothing else is looked at:</p>
 <ul>

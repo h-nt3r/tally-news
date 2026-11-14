@@ -271,7 +271,7 @@ When the rule finds any, a "Blindspots" section opens the topic sections and joi
 - A white bordered 12px-radius list with hairline row dividers. A source row shows name, optional type tag, host and feed link, the lean pill, a plain status line and a switch; on phone it is two columns, on desktop three columns (name, meta, switch).
 
 ### Footer and notes
-- White footer with a top hairline holding three 13px muted lines (ordering rule, label disclaimer, code and license). Unknown facts show as dashed-border placeholders ("not published yet"), never invented values. Code blocks are surface-white with a hairline border and wrap long lines.
+- White footer with a top hairline holding four 13px muted lines (the "Follow without an account" line with the Atom feeds and the OPML list is the second) (ordering rule, label disclaimer, code and license). Unknown facts show as dashed-border placeholders ("not published yet"), never invented values. Code blocks are surface-white with a hairline border and wrap long lines.
 
 ### Focus
 - Every focusable element gets a 3px teal outline with 2px offset on `:focus-visible`.

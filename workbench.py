@@ -17,6 +17,7 @@ import json
 import re
 import secrets
 import socket
+import federation
 import sys
 import tomllib
 import urllib.parse
@@ -255,6 +256,7 @@ def discover(text, fetch, parse):
     text = text.strip()
     if not text:
         raise ValueError("Paste a website, a feed address or a YouTube channel.")
+    text = federation.feed_for(text) or text  # a Mastodon or Bluesky address becomes the feed that service already publishes
     handle = youtube_handle(text) if "youtube.com" in text else (text.lstrip("@") if text.startswith("@") else None)
     if handle:
         if not re.fullmatch(r"[\w.-]{1,60}", handle):
