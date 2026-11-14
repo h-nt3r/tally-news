@@ -1,0 +1,83 @@
+<div class="page prose">
+<h1>Run your own</h1>
+<p class="lede">This is an open-source news aggregator, made to be copied. The list of outlets, how they are labeled and how stories are ordered all live in plain files you can read and change.</p>
+
+<h2>Get the code</h2>
+<dl class="kv">
+<dt>Repository</dt><dd>{repo_link}</dd>
+<dt>License</dt><dd>{license_link}</dd>
+</dl>
+<p>Until it is published, the code is the project folder this site was built from.</p>
+
+<h2>Run it on your computer</h2>
+<p>It was built and tested on a Mac. You need Python 3.11 or newer.</p>
+<ol>
+<li>Open a terminal in the project folder and set it up once:
+<pre><code>python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt</code></pre></li>
+<li>Build the news and start the site:
+<pre><code>./run.sh</code></pre></li>
+<li>Open <code>http://localhost:8765</code> in your browser.</li>
+</ol>
+<p>To read it on your phone while on the same Wi-Fi, run <code>./run.sh --lan</code>. It prints an address to open on the phone. Anyone on that Wi-Fi can open the page while it runs, so skip this on public networks.</p>
+
+<h2>Keep it up to date</h2>
+<p>The site only shows the news as of its last build. On a Mac, <code>./schedule.sh install</code> sets up two background jobs: one rebuilds every 5 minutes and one keeps the page available. Each feed is asked whether it has changed since the last look (ETag and Last-Modified) and compressed copies are accepted, so an unchanged feed costs the outlet one tiny reply. The page is published first; any new summaries are written afterwards and the front page is refreshed. Add <code>--lan</code> to reach it from a phone on the same Wi-Fi. <code>./schedule.sh status</code> shows whether it is running and how old the page is, and <code>./schedule.sh uninstall</code> removes it.</p>
+<p>On Linux, or any machine with cron, run the build on a schedule yourself and serve the <code>site/</code> folder with any web server:</p>
+<pre><code>*/20 * * * * cd /path/to/project &amp;&amp; .venv/bin/python build.py</code></pre>
+<p>A build that finds almost nothing is discarded, so the last good page stays. An open page checks for newer builds every few minutes and offers a refresh; it never reorders by itself.</p>
+
+<h2 id="groups">Run one for your group</h2>
+<p>A mutual aid network, union local, chapter or neighborhood group can run its own copy with its own name and its own outlets, as an alternative to getting news through social media. A group is one plain file. No account, nothing sent anywhere.</p>
+<pre><code>.venv/bin/python groups.py new "Eastside Mutual Aid"
+.venv/bin/python groups.py add eastside-mutual-aid https://your-local-paper.org
+./group.sh eastside-mutual-aid</code></pre>
+<p>The first command makes <code>groups/eastside-mutual-aid/group.toml</code>. The second finds the feed on a pasted website and adds it; you choose its label (<code>--lean left|center|right</code>) and topic. The third builds the page and serves it on its own port. Add <code>--empty</code> to the first command to start from only your own outlets, and leave it off to start from the full default list and remove what you don't want. Keeping other outlets in the mix is deliberate: your group sees what everyone else is saying, or not saying, and can hide any outlet it chooses.</p>
+<p>Local outlets rarely cover the same story, so a group's page also lists headlines reported by only one outlet. The list of groups, their ports and their settings are in <code>groups.py list</code>.</p>
+
+<h2>Follow a page with no feed</h2>
+<p>Many local sources (a council news page, a union's announcements) have no feed. A group can watch the page instead, and each new link that appears becomes an item:</p>
+<pre><code>.venv/bin/python groups.py add-page eastside-mutual-aid https://example.gov/council/news --link-contains /news/</code></pre>
+<p>It shows the links it finds so you can check it picked headlines and not menus; <code>--link-contains</code> and <code>--min-words</code> narrow it down. It is polite: it honors <code>robots.txt</code> and looks at a page at most every 30 minutes. See <a href="methods.html#pages">how it works and its limits</a>.</p>
+
+<h2>Choose your own sources</h2>
+<p>Every outlet is a short block in <code>config/sources.toml</code>. Copy one, change the name and web address, set its label, and run <code>./run.sh</code> again.</p>
+<pre><code>[[feeds]]
+name = "Example Daily"
+url = "https://example.com/rss.xml"
+lean = "center"     # left, center or right
+type = "commercial"  # optional: wire, public, state, nonprofit or commercial (leave it out if unsure)
+topic = "us"        # us, world or tech</code></pre>
+<p>The Sources and Settings pages only switch things on or off among outlets already in the build. To add a new outlet, edit the file and rebuild. That is what a fork is for.</p>
+
+<h2>Make it your own: the workbench</h2>
+<p>Run <code>./workbench.sh</code> and open <code>http://localhost:8766</code>. It is a private copy of this page for this computer only, with a <b>Manage sources</b> page where you can remove outlets you never want to see, add new ones by pasting a website, a feed address or a YouTube channel, and change a side label you disagree with. Your changes are saved in <code>workbench/changes.toml</code> on top of the default list, so you can always press <b>Reset to default</b> to get the full picture back. The public page never changes. Add <code>--lan</code> (<code>./workbench.sh --lan</code>) to also show a read-only copy on your phone over the same Wi-Fi.</p>
+
+<h2>Follow accounts for clips</h2>
+<p>Add accounts on open platforms under <code>[[social]]</code> in <code>config/sources.toml</code>. They show up under &ldquo;Clips and posts&rdquo;, newest first, and never count toward the left, center and right numbers.</p>
+<pre><code>[[social]]
+name = "Bellingcat"
+platform = "bluesky"      # bluesky, mastodon or reddit
+handle = "bellingcat.com" # mastodon: "@user@instance.social" or "#tag@instance.social"; reddit: "r/worldnews"
+# kind = "all"            # default is video posts only</code></pre>
+<p>Clips play in this site&rsquo;s own player, straight from the public file. To keep each clip&rsquo;s preview frame off this site (for example on a public copy, where hosting other people&rsquo;s images may matter), set <code>clip_thumbnails = false</code> under <code>[settings]</code>; cards then show a plain dark tile.</p>
+<p>To open Reddit or YouTube links through an open-source privacy front end, add an <code>[open_with]</code> section (examples are in the file). TikTok and Instagram have no open feed and are not scraped.</p>
+
+<h2 id="ordering">How stories are ordered</h2>
+<p>Outlets reporting the same event are grouped by comparing the words in their headlines and summaries. Groups are ranked by how many different outlets are in them, then by how recent they are. Nothing about you, your clicks or what is popular changes that order.</p>
+<p>The popularity labels (shares on Mastodon, trends on Bluesky, points on Hacker News, video views) are shown beside stories for information only. Each one links to the platform: Bluesky opens its feed for that topic, Hacker News opens the discussion, and Mastodon opens its list of trending links (it has no page for a single article, and the list changes through the day). Those audiences are small and tech-minded, so a story with no label is not unimportant.</p>
+
+<h2>How labels are set</h2>
+<p>Left, center and right are one maintainer&rsquo;s judgment and are not facts. The outlet type (how it is funded or owned) is also a classification by the maintainer, set only where it is well documented. They are in <code>config/sources.toml</code>, and the <a href="sources.html">Sources page</a> lists every one. If you disagree, change it in your copy.</p>
+
+<h2>What is in the folder</h2>
+<dl class="kv">
+<dt><code>config/</code></dt><dd>the list of outlets and a few settings</dd>
+<dt><code>build.py</code></dt><dd>fetches the news, groups stories, writes the pages</dd>
+<dt><code>archive.py</code></dt><dd>remembers every headline and gives each story a lasting id</dd>
+<dt><code>analytics.py</code></dt><dd>works out the timing facts, counts and the data file</dd>
+<dt><code>template/</code></dt><dd>how the pages look and behave</dd>
+<dt><code>run.sh</code></dt><dd>builds and serves the site by hand</dd>
+<dt><code>schedule.sh</code></dt><dd>keeps the site current on a Mac</dd>
+</dl>
+</div>

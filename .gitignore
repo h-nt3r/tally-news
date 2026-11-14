@@ -1,0 +1,20 @@
+.venv/
+cache/
+site/
+__pycache__/
+.impeccable/review/
+.impeccable/mocks/
+.impeccable/questions/
+logs/
+history/*
+!history/README.md
+
+# your personal workbench (changes, archive, built pages)
+workbench/
+
+# local language model and llama.cpp (large downloads; see README)
+tools/
+
+# groups: the group.toml files are the product; their builds and archives are local
+groups/*/site/
+groups/*/history/

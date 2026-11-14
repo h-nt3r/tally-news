@@ -1,0 +1,29 @@
+<div class="page">
+<h1>Settings</h1>
+<p class="lede">Saved only in this browser, on this device. There is no account and nothing is sent anywhere.</p>
+
+<h2>Show</h2>
+<div class="list">
+<button class="trow" role="switch" data-set="lean.left"><span class="lbl"><b>Left</b><span class="d">Outlets labeled left.</span></span><span class="knob" aria-hidden="true"></span></button>
+<button class="trow" role="switch" data-set="lean.center"><span class="lbl"><b>Center</b><span class="d">Outlets labeled center.</span></span><span class="knob" aria-hidden="true"></span></button>
+<button class="trow" role="switch" data-set="lean.right"><span class="lbl"><b>Right</b><span class="d">Outlets labeled right.</span></span><span class="knob" aria-hidden="true"></span></button>
+</div>
+
+<h2>Reading</h2>
+<div class="list">
+<button class="trow" role="switch" data-set="signals"><span class="lbl"><b>Popularity signals</b><span class="d">Shares on Mastodon, Bluesky trends, Hacker News points and video views. Information only; they never change the order.</span></span><span class="knob" aria-hidden="true"></span></button>
+<button class="trow" role="switch" data-set="newMarks"><span class="lbl"><b>Mark what&rsquo;s new</b><span class="d">Tag stories that gained coverage since you last opened the news page on this device.</span></span><span class="knob" aria-hidden="true"></span></button>
+</div>
+
+<h2>Sources</h2>
+<div class="list"><div class="row-actions"><p id="offCount">All sources are on.</p><a class="btn" href="sources.html">Choose sources</a></div></div>
+
+<h2>Back up or move your settings</h2>
+<div class="list"><div class="row-actions"><p>Save your settings to a file, or load one from another device.</p>
+<span class="btns"><button class="btn" id="export" type="button">Export</button> <button class="btn" id="import" type="button">Import</button></span></div></div>
+<input type="file" id="file" accept="application/json,.json" hidden>
+<p class="status-line" id="status" role="status" aria-live="polite"></p>
+
+<h2>Reset</h2>
+<div class="list"><div class="row-actions"><p>Put every switch back to its default.</p><button class="btn danger" id="reset" type="button">Reset to defaults</button></div></div>
+</div>

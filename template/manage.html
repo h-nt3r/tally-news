@@ -1,0 +1,222 @@
+<div class="page" id="wb" data-token="__TOKEN__">
+<h1>Manage sources</h1>
+<p class="lead">This is your own copy of the source list. Remove outlets you never want to see, add ones the defaults miss, and change a side label if you disagree with it. Nothing here touches the public default list, and the way back is always on this page.</p>
+<p class="muted-note">Changes are saved to <code>workbench/changes.toml</code> on this Mac. They take effect after a rebuild, which takes about a minute.</p>
+
+<div class="wb-bar">
+<p class="wb-summary" id="wbSummary">Loading&hellip;</p>
+<div class="row-actions-plain">
+<button class="btn primary" id="wbRebuild" type="button">Rebuild now</button>
+<button class="btn" id="wbReset" type="button">Reset to default</button>
+</div>
+<p class="status-line" id="wbStatus" role="status" aria-live="polite"></p>
+</div>
+
+<div id="wbAttn"></div>
+
+<h2>Add a source</h2>
+<p class="muted-note">Paste a website, a feed address, or a YouTube channel (<code>@handle</code> or its address). We look for the feed and show its latest headlines before you add it.</p>
+<form class="wb-find" id="wbFind">
+<label class="wb-label" for="wbUrl">Website, feed or YouTube channel</label>
+<div class="wb-find-row"><input id="wbUrl" type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="example.com or @channelname"><button class="btn primary" type="submit">Find feed</button></div>
+</form>
+<div class="wb-found" id="wbFound" hidden></div>
+
+<h2>Your sources</h2>
+<div id="wbList"></div>
+
+<h2 id="removed">Removed</h2>
+<div id="wbRemoved"></div>
+</div>
+
+<script>
+(function () {
+  var root = document.getElementById("wb");
+  var token = root.getAttribute("data-token");
+  var $ = function (id) { return document.getElementById(id); };
+  var TYPES = {"": "No type", wire: "Wire service", "public": "Public broadcaster", state: "State-funded", nonprofit: "Nonprofit", commercial: "Commercial"};
+  var SIDES = {left: "Left", center: "Center", right: "Right"};
+  var TOPICS = {us: "United States", world: "World", tech: "Technology"};
+  var current = null, timer = null, health = {};
+  var NEEDS = 2;  // builds in a row before a failing source is called out (one blip is usually temporary)
+
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  }
+  function say(msg, bad) { var s = $("wbStatus"); s.textContent = msg || ""; s.className = "status-line" + (bad ? " bad" : ""); }
+  function api(path, body) {
+    return fetch(path, {
+      method: body === undefined ? "GET" : "POST",
+      headers: body === undefined ? {} : {"Content-Type": "application/json", "X-Workbench-Token": token},
+      body: body === undefined ? undefined : JSON.stringify(body)
+    }).then(function (r) {
+      return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || "Something went wrong."); return j; });
+    });
+  }
+  function select(options, value, label, onchange) {
+    var s = el("select", "wb-sel");
+    s.setAttribute("aria-label", label);
+    Object.keys(options).forEach(function (k) {
+      var o = el("option", null, options[k]); o.value = k; if (k === value) o.selected = true; s.appendChild(o);
+    });
+    s.addEventListener("change", function () { onchange(s.value); });
+    return s;
+  }
+  function act(path, body, ok) {
+    return api(path, body).then(function (st) { render(st); if (ok) say(ok); }).catch(function (e) { say(e.message, true); });
+  }
+
+  function healthOf(src) { return health[(src.kind === "feeds" ? "a" : "v") + ":" + src.name]; }
+  function since(h) {
+    if (!h.since) return "";
+    var d = new Date(h.since);
+    return isNaN(d) ? "" : " since " + d.toLocaleString([], {weekday: "short", hour: "numeric", minute: "2-digit"});
+  }
+  function healthText(h) {
+    if (!h || h.status === "ok") return "";
+    if (h.status === "failed") return h.builds < NEEDS ? "Could not load in the last build. This may be temporary." + (h.error ? " (" + h.error + ")" : "")
+      : "Has not loaded for " + h.builds + " builds in a row" + since(h) + (h.error ? ": " + h.error : ".");
+    if (h.status === "empty") return h.builds < NEEDS ? "The feed had no items in the last build." : "The feed has had no items for " + h.builds + " builds in a row" + since(h) + ".";
+    return "Quiet: nothing newer than the time window.";
+  }
+  function needsAttention(h) { return h && (h.status === "failed" || h.status === "empty") && h.builds >= NEEDS; }
+
+  function row(src) {
+    var li = el("li", "wb-row" + (src.removed ? " gone" : ""));
+    var main = el("div", "wb-main");
+    var name = el("div", "wb-name");
+    var a = el("a", null, src.name); a.href = src.home; a.target = "_blank"; a.rel = "noopener noreferrer";
+    name.appendChild(a);
+    if (src.origin === "added") name.appendChild(el("span", "badge type", "Added by you"));
+    if (src.default_lean !== src.lean || src.default_type !== src.type) name.appendChild(el("span", "badge type", "Relabeled"));
+    main.appendChild(name);
+    var h = src.removed ? null : healthOf(src), ht = healthText(h);
+    if (ht) main.appendChild(el("div", "wb-health" + (needsAttention(h) ? " warn" : ""), ht));
+    li.appendChild(main);
+    var ctl = el("div", "wb-ctl");
+    if (src.removed) {
+      var back = el("button", "btn", "Restore"); back.type = "button";
+      back.setAttribute("aria-label", "Restore " + src.name);
+      back.addEventListener("click", function () { act("/api/restore", {kind: src.kind, name: src.name}, "Restored " + src.name + ". Rebuild to see it."); });
+      ctl.appendChild(back);
+    } else {
+      ctl.appendChild(select(SIDES, src.lean, "Side for " + src.name, function (v) { act("/api/set", {kind: src.kind, name: src.name, field: "lean", value: v}, "Updated " + src.name + ". Rebuild to see it."); }));
+      ctl.appendChild(select(TYPES, src.type, "Type for " + src.name, function (v) { act("/api/set", {kind: src.kind, name: src.name, field: "type", value: v}, "Updated " + src.name + ". Rebuild to see it."); }));
+      var rm = el("button", "btn danger", "Remove"); rm.type = "button";
+      rm.setAttribute("aria-label", "Remove " + src.name);
+      rm.addEventListener("click", function () {
+        act("/api/remove", {kind: src.kind, name: src.name}, src.origin === "added" ? "Deleted " + src.name + "." : "Removed " + src.name + ". You can restore it under Removed below.");
+      });
+      ctl.appendChild(rm);
+    }
+    li.appendChild(ctl);
+    return li;
+  }
+
+  function render(st) {
+    current = st;
+    var live = st.sources.filter(function (s) { return !s.removed; }), gone = st.sources.filter(function (s) { return s.removed; });
+    var bits = [live.length + " sources on your list", st.defaults + " in the default list"];
+    if (st.removed) bits.push(st.removed + " removed");
+    if (st.added) bits.push(st.added + " added");
+    var text = bits.join(" · ");
+    if (st.building) text += " · rebuilding now";
+    else if (st.dirty) text += " · changes not built yet";
+    $("wbSummary").textContent = text;
+    $("wbRebuild").disabled = st.building;
+    $("wbRebuild").textContent = st.building ? "Rebuilding…" : (st.dirty ? "Apply changes and rebuild" : "Rebuild now");
+    var attn = $("wbAttn"); attn.textContent = "";
+    var sick = live.filter(function (s) { return needsAttention(healthOf(s)); });
+    if (sick.length) {
+      attn.appendChild(el("h2", null, "Needs attention (" + sick.length + ")"));
+      attn.appendChild(el("p", "muted-note", "These sources have not loaded for at least " + NEEDS + " builds in a row, so they are quietly missing from your picture. Remove one if you do not need it. It stays in the default list and you can restore it. Rebuilding checks them again."));
+      var ula = el("ul", "wb-rows"); sick.forEach(function (s) { ula.appendChild(row(s)); }); attn.appendChild(ula);
+      bits.push(sick.length + " need attention");
+      text = bits.join(" · ") + (st.building ? " · rebuilding now" : st.dirty ? " · changes not built yet" : "");
+      $("wbSummary").textContent = text;
+    }
+    var list = $("wbList"); list.textContent = "";
+    ["feeds", "channels"].forEach(function (kind) {
+      var items = live.filter(function (s) { return s.kind === kind; }).sort(function (a, b) { return a.name.toLowerCase() < b.name.toLowerCase() ? -1 : 1; });
+      if (!items.length) return;
+      list.appendChild(el("h3", "wb-h", (kind === "feeds" ? "Written coverage" : "Video channels") + " (" + items.length + ")"));
+      var ul = el("ul", "wb-rows"); items.forEach(function (s) { ul.appendChild(row(s)); }); list.appendChild(ul);
+    });
+    var rem = $("wbRemoved"); rem.textContent = "";
+    if (!gone.length) { rem.appendChild(el("p", "muted-note", "Nothing removed. Every default source is on your list.")); }
+    else {
+      var all = el("button", "btn", "Restore all " + gone.length); all.type = "button";
+      all.addEventListener("click", function () { act("/api/restore_all", {}, "Restored everything you removed. Rebuild to see it."); });
+      rem.appendChild(all);
+      var ul2 = el("ul", "wb-rows"); gone.forEach(function (s) { ul2.appendChild(row(s)); }); rem.appendChild(ul2);
+    }
+    if (st.error && !st.building) say("The last rebuild failed: " + st.error, true);
+    if (st.building && !timer) timer = setInterval(poll, 3000);
+    if (!st.building && timer) { clearInterval(timer); timer = null; if (!st.dirty && !st.error) say("Rebuilt. Open the news page to see your list."); }
+  }
+  function poll() {
+    var h = fetch("/data/health.json", {cache: "no-store"}).then(function (r) { return r.ok ? r.json() : {}; }).then(function (j) { health = j.sources || {}; }).catch(function () {});
+    h.then(function () { return api("/api/state"); }).then(render).catch(function () {});
+  }
+
+  $("wbRebuild").addEventListener("click", function () {
+    api("/api/rebuild", {}).then(function () { say("Rebuilding. This takes about a minute."); poll(); }).catch(function (e) { say(e.message, true); });
+  });
+  $("wbReset").addEventListener("click", function () {
+    if (!window.confirm("Put the source list back to the defaults? Your removals, additions and relabels will be forgotten.")) return;
+    act("/api/reset", {}, "Reset to the default list. Rebuild to see it.");
+  });
+
+  $("wbFind").addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    var url = $("wbUrl").value.trim(), box = $("wbFound");
+    if (!url) return;
+    say("Looking…"); box.hidden = true;
+    api("/api/discover", {url: url}).then(function (f) { say(""); showFound(f); }).catch(function (e) { say(e.message, true); });
+  });
+
+  function showFound(f) {
+    var box = $("wbFound"); box.textContent = ""; box.hidden = false;
+    box.appendChild(el("h3", "wb-h", f.kind === "feeds" ? "Found a feed" : "Found a YouTube channel"));
+    var name = el("input", "wb-name-in"); name.type = "text"; name.value = f.name; name.maxLength = 60; name.setAttribute("aria-label", "Name");
+    var nl = el("label", "wb-label", "Name"); nl.appendChild(name);
+    box.appendChild(nl);
+    box.appendChild(el("p", "muted-note", f.kind === "feeds" ? f.url : "youtube.com/@" + f.handle));
+    if (f.note) box.appendChild(el("p", "muted-note", f.note));
+    if (f.items.length) {
+      box.appendChild(el("p", "wb-label", "Latest from it"));
+      var ul = el("ul", "wb-prev"); f.items.forEach(function (i) { ul.appendChild(el("li", null, i.title)); }); box.appendChild(ul);
+    } else if (!f.note) {
+      box.appendChild(el("p", "muted-note", "No recent items to preview."));
+    }
+    (f.others || []).forEach(function (u) {
+      var b = el("button", "btn", "Use " + u + " instead"); b.type = "button";
+      b.addEventListener("click", function () { $("wbUrl").value = u; $("wbFind").dispatchEvent(new Event("submit", {cancelable: true})); });
+      box.appendChild(b);
+    });
+    var row1 = el("div", "wb-addrow");
+    var side = select(Object.assign({"": "Choose a side…"}, SIDES), "", "Side", function () {});
+    var type = select(TYPES, "", "Type (optional)", function () {});
+    row1.appendChild(side); row1.appendChild(type);
+    var topic = null;
+    if (f.kind === "feeds") { topic = select(TOPICS, "us", "Topic", function () {}); row1.appendChild(topic); }
+    box.appendChild(row1);
+    box.appendChild(el("p", "muted-note", "The side and type are your own labels. Nothing is guessed for you."));
+    var add = el("button", "btn primary", "Add to my list"); add.type = "button";
+    add.addEventListener("click", function () {
+      var body = {kind: f.kind, name: name.value, lean: side.value, type: type.value};
+      if (f.kind === "feeds") { body.url = f.url; body.site = f.site; body.topic = topic.value; } else { body.handle = f.handle; }
+      api("/api/add", body).then(function (st) {
+        render(st); box.hidden = true; $("wbUrl").value = ""; say("Added " + body.name + ". Rebuild to see it.");
+      }).catch(function (e) { say(e.message, true); });
+    });
+    box.appendChild(add);
+    box.scrollIntoView({block: "nearest"});
+  }
+
+  poll();
+})();
+</script>

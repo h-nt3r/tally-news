@@ -1,0 +1,868 @@
+# Your source list. Edit freely — this is the whole "algorithm" for who you hear from.
+#
+# lean:   left | center | right        (my best judgment; check AllSides / Ground News and change it)
+# type:   how the outlet is funded or owned, only where that is well documented (leave it out when unsure):
+#         wire | public | state | nonprofit | commercial     (definitions: the Methods page)
+# topic:  us | world | tech
+# site:   the outlet's own homepage, shown on the Sources page (the feed address is shown beside it)
+#
+# A feed that fails to load is skipped, so a dead link never breaks the page.
+
+[settings]
+repo_url = "https://github.com/h-nt3r/tally-news"   # the footer links here; empty shows "not published yet"
+license = "AGPL-3.0"                                 # shown in the footer, linked to LICENSE in the repo
+base_url = ""        # where this site is hosted, e.g. "https://news.example.org/"; citations carry it. Leave empty until it is public
+hours_back = 36          # only show items newer than this
+max_per_feed = 40        # stops one chatty outlet from dominating
+max_videos = 12
+clips = false            # short clips and posts from social accounts. Off: they are engagement content, and this is a tool for reading the news. Set true to bring them back
+clip_thumbnails = true   # keep a copy of each clip's preview frame on this site, so readers contact no outside server until they tap play
+post_match = 0.2         # how closely a clip or post must resemble a story to be listed under it (0 to 1)
+trend_match = 0.15       # how closely a Bluesky trend must match a story (0 to 1); lower = more matches, more mistakes
+latest_days = 3         # how many days of headlines the Latest page lists and searches (each day adds about 200 KB to a data file the page loads)
+merge_threshold = 0.78   # second pass that joins duplicate stories split by topic or wording (0 = off). Lower = joins less; above about 0.83 it starts joining stories that are only related
+summaries = true         # a short "what happened" for each story, written on this computer by a small open model (llama.cpp + Qwen). Needs the files in tools/ (see README); with none installed the page just has no summaries
+summary_model = "tools/Qwen3-4B-Q4_K_M.gguf"
+summary_bin = "tools/llama/llama-completion"
+summary_per_build = 1    # new summaries per build. With a build every 5 minutes that is plenty, and each build stays short; results are cached. build.py --all-summaries does every missing one at once
+summary_budget_s = 90    # also stop starting new summaries after this many seconds in one build
+summary_threads = 2
+breaking = true          # a "Breaking" section at the top for stories unfolding right now (rule on the Methods page)
+breaking_max_age_h = 4   # first report no older than this many hours
+breaking_min_outlets = 3 # outlets that must have it...
+breaking_min_recent = 2  # ...with at least this many reporting in the last breaking_recent_min minutes
+breaking_recent_min = 60
+breaking_fresh_min = 45  # or: 2+ outlets within this many minutes of the first report
+breaking_max = 4         # most stories shown there
+blindspots = true         # a "Blindspots" section: stories only one side has covered (rule on the Methods page)
+blindspot_min_outlets = 3 # outlets that must have it, all labelled the same side
+blindspot_min_age_h = 3   # first report at least this old, so the other sides have had time
+blindspot_max = 6         # most stories shown there
+cluster_threshold = 0.78 # lower = stricter grouping of "same story" (0 to 1)
+
+# ---------- Articles ----------
+
+[[feeds]]
+name = "The Guardian US"
+url = "https://www.theguardian.com/us-news/rss"
+site = "https://www.theguardian.com/us-news"
+lean = "left"
+topic = "us"
+
+
+[[feeds]]
+name = "Vox"
+url = "https://www.vox.com/rss/index.xml"
+site = "https://www.vox.com"
+lean = "left"
+type = "commercial"
+topic = "us"
+
+[[feeds]]
+name = "The Intercept"
+url = "https://theintercept.com/feed/?rss"
+site = "https://theintercept.com"
+lean = "left"
+topic = "us"
+
+[[feeds]]
+name = "NPR"
+url = "https://feeds.npr.org/1001/rss.xml"
+site = "https://www.npr.org"
+lean = "center"
+type = "public"
+topic = "us"
+
+[[feeds]]
+name = "PBS NewsHour"
+url = "https://www.pbs.org/newshour/feeds/rss/headlines"
+site = "https://www.pbs.org/newshour"
+lean = "center"
+type = "public"
+topic = "us"
+
+[[feeds]]
+name = "The Hill"
+url = "https://thehill.com/feed/"
+site = "https://thehill.com"
+lean = "center"
+type = "commercial"
+topic = "us"
+
+[[feeds]]
+name = "Axios"
+url = "https://api.axios.com/feed/"
+site = "https://www.axios.com"
+lean = "center"
+type = "commercial"
+topic = "us"
+
+[[feeds]]
+name = "Fox News"
+url = "https://moxie.foxnews.com/google-publisher/latest.xml"
+site = "https://www.foxnews.com"
+lean = "right"
+type = "commercial"
+topic = "us"
+
+[[feeds]]
+name = "New York Post"
+url = "https://nypost.com/feed/"
+site = "https://nypost.com"
+lean = "right"
+type = "commercial"
+topic = "us"
+
+[[feeds]]
+name = "Washington Examiner"
+url = "https://www.washingtonexaminer.com/feed"
+site = "https://www.washingtonexaminer.com"
+lean = "right"
+type = "commercial"
+topic = "us"
+
+[[feeds]]
+name = "National Review"
+url = "https://www.nationalreview.com/feed/"
+site = "https://www.nationalreview.com"
+lean = "right"
+type = "commercial"
+topic = "us"
+
+[[feeds]]
+name = "Reason"
+url = "https://reason.com/feed/"
+site = "https://reason.com"
+lean = "right"       # libertarian; closest bucket
+type = "nonprofit"
+topic = "us"
+
+
+[[feeds]]
+name = "Breitbart"
+url = "https://feeds.feedburner.com/breitbart"
+site = "https://www.breitbart.com"
+lean = "right"
+type = "commercial"
+topic = "us"
+
+[[feeds]]
+name = "ZeroHedge"
+url = "https://feeds.feedburner.com/zerohedge/feed"
+site = "https://www.zerohedge.com"
+lean = "right"
+topic = "us"
+
+# ---------- World ----------
+
+[[feeds]]
+name = "BBC World"
+url = "https://feeds.bbci.co.uk/news/world/rss.xml"
+site = "https://www.bbc.com/news/world"
+lean = "center"
+type = "public"
+topic = "world"
+
+[[feeds]]
+name = "Al Jazeera"
+url = "https://www.aljazeera.com/xml/rss/all.xml"
+site = "https://www.aljazeera.com"
+lean = "center"
+type = "state"
+topic = "world"
+
+[[feeds]]
+name = "DW News"
+url = "https://rss.dw.com/rdf/rss-en-all"
+site = "https://www.dw.com"
+lean = "center"
+type = "state"
+topic = "world"
+
+[[feeds]]
+name = "NPR World"
+url = "https://feeds.npr.org/1004/rss.xml"
+site = "https://www.npr.org/sections/world"
+lean = "center"
+type = "public"
+topic = "world"
+
+[[feeds]]
+name = "The Guardian World"
+url = "https://www.theguardian.com/world/rss"
+site = "https://www.theguardian.com/world"
+lean = "left"
+topic = "world"
+
+[[feeds]]
+name = "Fox News World"
+url = "https://moxie.foxnews.com/google-publisher/world.xml"
+site = "https://www.foxnews.com/world"
+lean = "right"
+type = "commercial"
+topic = "world"
+
+[[feeds]]
+name = "Washington Times World"
+url = "https://www.washingtontimes.com/rss/headlines/news/world/"
+site = "https://www.washingtontimes.com/news/world"
+lean = "right"
+type = "commercial"
+topic = "world"
+
+[[feeds]]
+name = "Consortium News"
+url = "https://consortiumnews.com/feed/"
+site = "https://consortiumnews.com"
+lean = "left"
+type = "nonprofit"
+topic = "world"
+
+[[feeds]]
+name = "The Grayzone"
+url = "https://thegrayzone.com/feed/"
+site = "https://thegrayzone.com"
+lean = "left"
+topic = "world"
+
+# ---------- Tech ----------
+
+[[feeds]]
+name = "Ars Technica"
+url = "https://feeds.arstechnica.com/arstechnica/index"
+site = "https://arstechnica.com"
+lean = "center"
+type = "commercial"
+topic = "tech"
+
+[[feeds]]
+name = "The Verge"
+url = "https://www.theverge.com/rss/index.xml"
+site = "https://www.theverge.com"
+lean = "left"
+type = "commercial"
+topic = "tech"
+
+[[feeds]]
+name = "Wired"
+url = "https://www.wired.com/feed/rss"
+site = "https://www.wired.com"
+lean = "left"
+type = "commercial"
+topic = "tech"
+
+[[feeds]]
+name = "Hacker News"
+url = "https://hnrss.org/frontpage"
+site = "https://news.ycombinator.com"
+lean = "center"
+topic = "tech"
+
+[[feeds]]
+name = "The New York Times"
+url = "https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml"
+site = "https://www.nytimes.com"
+lean = "left"
+type = "commercial"
+topic = "us"
+
+[[feeds]]
+name = "The Washington Post"
+url = "https://feeds.washingtonpost.com/rss/national"
+site = "https://www.washingtonpost.com"
+lean = "left"
+type = "commercial"
+topic = "us"
+
+[[feeds]]
+name = "CNN"
+url = "http://rss.cnn.com/rss/cnn_topstories.rss"
+site = "https://www.cnn.com"
+lean = "left"
+type = "commercial"
+topic = "us"
+
+[[feeds]]
+name = "The Atlantic"
+url = "https://www.theatlantic.com/feed/all/"
+site = "https://www.theatlantic.com"
+lean = "left"
+type = "commercial"
+topic = "us"
+
+[[feeds]]
+name = "Slate"
+url = "https://slate.com/feeds/all.rss"
+site = "https://slate.com"
+lean = "left"
+type = "commercial"
+topic = "us"
+
+[[feeds]]
+name = "Mother Jones"
+url = "https://www.motherjones.com/feed/"
+site = "https://www.motherjones.com"
+lean = "left"
+type = "nonprofit"
+topic = "us"
+
+[[feeds]]
+name = "The Nation"
+url = "https://www.thenation.com/feed/?post_type=article"
+site = "https://www.thenation.com"
+lean = "left"
+topic = "us"
+
+[[feeds]]
+name = "Salon"
+url = "https://www.salon.com/feed/"
+site = "https://www.salon.com"
+lean = "left"
+type = "commercial"
+topic = "us"
+
+[[feeds]]
+name = "CBS News"
+url = "https://www.cbsnews.com/latest/rss/main"
+site = "https://www.cbsnews.com"
+lean = "center"
+type = "commercial"
+topic = "us"
+
+[[feeds]]
+name = "ABC News"
+url = "https://abcnews.go.com/abcnews/topstories"
+site = "https://abcnews.go.com"
+lean = "center"
+type = "commercial"
+topic = "us"
+
+[[feeds]]
+name = "The Federalist"
+url = "https://thefederalist.com/feed/"
+site = "https://thefederalist.com"
+lean = "right"
+type = "commercial"
+topic = "us"
+
+[[feeds]]
+name = "Daily Caller"
+url = "https://dailycaller.com/feed/"
+site = "https://dailycaller.com"
+lean = "right"
+type = "commercial"
+topic = "us"
+
+[[feeds]]
+name = "Common Dreams"
+url = "https://www.commondreams.org/rss.xml"
+site = "https://www.commondreams.org"
+lean = "left"
+type = "nonprofit"
+topic = "us"
+
+[[feeds]]
+name = "Jacobin"
+url = "https://jacobin.com/feed"
+site = "https://jacobin.com"
+lean = "left"
+type = "nonprofit"
+topic = "us"
+
+[[feeds]]
+name = "The Gateway Pundit"
+url = "https://www.thegatewaypundit.com/feed/"
+site = "https://www.thegatewaypundit.com"
+lean = "right"
+type = "commercial"
+topic = "us"
+
+[[feeds]]
+name = "The New York Times World"
+url = "https://rss.nytimes.com/services/xml/rss/nyt/World.xml"
+site = "https://www.nytimes.com/section/world"
+lean = "left"
+type = "commercial"
+topic = "world"
+
+[[feeds]]
+name = "The Wall Street Journal World"
+url = "https://feeds.content.dowjones.io/public/rss/RSSWorldNews"
+site = "https://www.wsj.com/world"
+lean = "center"
+type = "commercial"
+topic = "world"
+
+[[feeds]]
+name = "Antiwar.com"
+url = "https://news.antiwar.com/feed/"
+site = "https://www.antiwar.com"
+lean = "right"
+type = "nonprofit"
+topic = "world"
+
+[[feeds]]
+name = "Mondoweiss"
+url = "https://mondoweiss.net/feed/"
+site = "https://mondoweiss.net"
+lean = "left"
+type = "nonprofit"
+topic = "world"
+
+[[feeds]]
+name = "The Guardian Tech"
+url = "https://www.theguardian.com/technology/rss"
+site = "https://www.theguardian.com/technology"
+lean = "left"
+topic = "tech"
+
+[[feeds]]
+name = "TechCrunch"
+url = "https://techcrunch.com/feed/"
+site = "https://techcrunch.com"
+lean = "center"
+type = "commercial"
+topic = "tech"
+
+[[feeds]]
+name = "Engadget"
+url = "https://www.engadget.com/rss.xml"
+site = "https://www.engadget.com"
+lean = "center"
+type = "commercial"
+topic = "tech"
+
+# ---------- Videos (YouTube channels, by @handle) ----------
+# Handles are looked up once and cached. A wrong handle is skipped with a warning.
+
+# ---------- Added 2026-11-13: wider coverage across the spectrum (labels are one maintainer's judgment; edit freely) ----------
+
+[[feeds]]
+name = "Democracy Now"
+url = "https://www.democracynow.org/democracynow.rss"
+site = "https://www.democracynow.org"
+lean = "left"
+topic = "us"
+type = "nonprofit"
+
+[[feeds]]
+name = "Truthout"
+url = "https://truthout.org/feed/"
+site = "https://truthout.org"
+lean = "left"
+topic = "us"
+type = "nonprofit"
+
+[[feeds]]
+name = "Payday Report"
+url = "https://paydayreport.com/feed/"
+site = "https://paydayreport.com"
+lean = "left"
+topic = "us"
+
+[[feeds]]
+name = "The Dispatch"
+url = "https://thedispatch.com/feed/"
+site = "https://thedispatch.com"
+lean = "right"
+topic = "us"
+type = "commercial"
+
+[[feeds]]
+name = "The American Conservative"
+url = "https://www.theamericanconservative.com/feed/"
+site = "https://www.theamericanconservative.com"
+lean = "right"
+topic = "us"
+type = "nonprofit"
+
+[[feeds]]
+name = "Washington Free Beacon"
+url = "https://freebeacon.com/feed/"
+site = "https://freebeacon.com"
+lean = "right"
+topic = "us"
+type = "nonprofit"
+
+[[feeds]]
+name = "Daily Wire"
+url = "https://www.dailywire.com/feeds/rss.xml"
+site = "https://www.dailywire.com"
+lean = "right"
+topic = "us"
+type = "commercial"
+
+[[feeds]]
+name = "Newsmax"
+url = "https://www.newsmax.com/rss/Newsfront/16/"
+site = "https://www.newsmax.com"
+lean = "right"
+topic = "us"
+type = "commercial"
+
+[[feeds]]
+name = "RealClearPolitics"
+url = "https://www.realclearpolitics.com/index.xml"
+site = "https://www.realclearpolitics.com"
+lean = "right"
+topic = "us"
+type = "commercial"
+
+[[feeds]]
+name = "The Blaze"
+url = "https://www.theblaze.com/feeds/feed.rss"
+site = "https://www.theblaze.com"
+lean = "right"
+topic = "us"
+type = "commercial"
+
+[[feeds]]
+name = "The Free Press"
+url = "https://www.thefp.com/feed"
+site = "https://www.thefp.com"
+lean = "right"
+topic = "us"
+type = "commercial"
+
+[[feeds]]
+name = "Washington Times"
+url = "https://www.washingtontimes.com/rss/headlines/news/"
+site = "https://www.washingtontimes.com"
+lean = "right"
+topic = "us"
+type = "commercial"
+
+[[feeds]]
+name = "Christian Science Monitor"
+url = "https://rss.csmonitor.com/feeds/all"
+site = "https://www.csmonitor.com"
+lean = "center"
+topic = "us"
+type = "nonprofit"
+
+[[feeds]]
+name = "Politico"
+url = "https://rss.politico.com/politics-news.xml"
+site = "https://www.politico.com"
+lean = "center"
+topic = "us"
+type = "commercial"
+
+[[feeds]]
+name = "Newsweek"
+url = "https://www.newsweek.com/rss"
+site = "https://www.newsweek.com"
+lean = "center"
+topic = "us"
+type = "commercial"
+
+[[feeds]]
+name = "ProPublica"
+url = "https://feeds.propublica.org/propublica/main"
+site = "https://www.propublica.org"
+lean = "center"
+topic = "us"
+type = "nonprofit"
+
+[[feeds]]
+name = "Stateline"
+url = "https://stateline.org/feed/"
+site = "https://stateline.org"
+lean = "center"
+topic = "us"
+type = "nonprofit"
+
+[[feeds]]
+name = "KFF Health News"
+url = "https://kffhealthnews.org/feed/"
+site = "https://kffhealthnews.org"
+lean = "center"
+topic = "us"
+type = "nonprofit"
+
+[[feeds]]
+name = "CalMatters"
+url = "https://calmatters.org/feed/"
+site = "https://calmatters.org"
+lean = "center"
+topic = "us"
+type = "nonprofit"
+
+[[feeds]]
+name = "The Texas Tribune"
+url = "https://www.texastribune.org/feeds/main/"
+site = "https://www.texastribune.org"
+lean = "center"
+topic = "us"
+type = "nonprofit"
+
+[[feeds]]
+name = "France 24"
+url = "https://www.france24.com/en/rss"
+site = "https://www.france24.com"
+lean = "center"
+topic = "world"
+type = "state"
+
+[[feeds]]
+name = "The Hindu"
+url = "https://www.thehindu.com/news/international/feeder/default.rss"
+site = "https://www.thehindu.com"
+lean = "center"
+topic = "world"
+type = "commercial"
+
+[[feeds]]
+name = "The Japan Times"
+url = "https://www.japantimes.co.jp/feed/"
+site = "https://www.japantimes.co.jp"
+lean = "center"
+topic = "world"
+type = "commercial"
+
+[[feeds]]
+name = "South China Morning Post"
+url = "https://www.scmp.com/rss/91/feed"
+site = "https://www.scmp.com"
+lean = "center"
+topic = "world"
+type = "commercial"
+
+[[feeds]]
+name = "The Times of Israel"
+url = "https://www.timesofisrael.com/feed/"
+site = "https://www.timesofisrael.com"
+lean = "center"
+topic = "world"
+type = "commercial"
+
+[[feeds]]
+name = "Middle East Eye"
+url = "https://www.middleeasteye.net/rss"
+site = "https://www.middleeasteye.net"
+lean = "left"
+topic = "world"
+type = "commercial"
+
+[[feeds]]
+name = "Euronews"
+url = "https://www.euronews.com/rss"
+site = "https://www.euronews.com"
+lean = "center"
+topic = "world"
+type = "commercial"
+
+[[feeds]]
+name = "The Kyiv Independent"
+url = "https://kyivindependent.com/news-archive/rss/"
+site = "https://kyivindependent.com"
+lean = "center"
+topic = "world"
+type = "commercial"
+
+[[feeds]]
+name = "Global Voices"
+url = "https://globalvoices.org/feed/"
+site = "https://globalvoices.org"
+lean = "left"
+topic = "world"
+type = "nonprofit"
+
+[[feeds]]
+name = "The Diplomat"
+url = "https://thediplomat.com/feed/"
+site = "https://thediplomat.com"
+lean = "center"
+topic = "world"
+type = "commercial"
+
+[[feeds]]
+name = "Rest of World"
+url = "https://restofworld.org/feed/latest"
+site = "https://restofworld.org"
+lean = "center"
+topic = "tech"
+type = "nonprofit"
+
+[[feeds]]
+name = "404 Media"
+url = "https://www.404media.co/rss/"
+site = "https://www.404media.co"
+lean = "left"
+topic = "tech"
+type = "commercial"
+
+[[feeds]]
+name = "Techdirt"
+url = "https://www.techdirt.com/feed/"
+site = "https://www.techdirt.com"
+lean = "left"
+topic = "tech"
+type = "commercial"
+
+[[feeds]]
+name = "The Register"
+url = "https://www.theregister.com/headlines.atom"
+site = "https://www.theregister.com"
+lean = "center"
+topic = "tech"
+type = "commercial"
+
+[[feeds]]
+name = "MIT Technology Review"
+url = "https://www.technologyreview.com/feed/"
+site = "https://www.technologyreview.com"
+lean = "center"
+topic = "tech"
+type = "commercial"
+
+[[channels]]
+name = "PBS NewsHour"
+handle = "PBSNewsHour"
+lean = "center"
+type = "public"
+
+[[channels]]
+name = "DW News"
+handle = "dwnews"
+lean = "center"
+type = "state"
+
+[[channels]]
+name = "Al Jazeera English"
+handle = "aljazeeraenglish"
+lean = "center"
+type = "state"
+
+[[channels]]
+name = "BBC News"
+handle = "BBCNews"
+lean = "center"
+type = "public"
+
+[[channels]]
+name = "The Young Turks"
+handle = "TheYoungTurks"
+lean = "left"
+type = "commercial"
+
+[[channels]]
+name = "MeidasTouch"
+handle = "MeidasTouch"
+lean = "left"
+type = "commercial"
+
+[[channels]]
+name = "Breaking Points"
+handle = "breakingpoints"
+lean = "left"
+type = "commercial"
+
+[[channels]]
+name = "Means TV"
+handle = "MeansTVstudios"
+lean = "left"
+
+[[channels]]
+name = "Fox News"
+handle = "FoxNews"
+lean = "right"
+type = "commercial"
+
+[[channels]]
+name = "Daily Wire"
+handle = "DailyWire"
+lean = "right"
+type = "commercial"
+
+[[channels]]
+name = "Reason"
+handle = "ReasonTV"
+lean = "right"
+type = "nonprofit"
+
+[[channels]]
+name = "Timcast IRL"
+handle = "TimcastIRL"
+lean = "right"
+type = "commercial"
+
+
+# ---------- Clips and posts (open platforms only) ----------
+# Accounts and communities to follow. They are pulled by this program on each build, never by a reader's browser,
+# shown newest first, and never ranked by likes or views. They are not outlets, so they never count toward the
+# left / center / right numbers.
+#   platform: bluesky | mastodon | reddit
+#   handle:   bluesky "apnews.com"  |  mastodon "@user@instance.social" or "#tag@instance.social"  |  reddit "r/worldnews"
+#   kind:     "video" (default: only posts with a video) or "all" (every post)
+# TikTok and Instagram have no open feed and are not scraped; use the paste-a-link intake planned for the workbench.
+
+[[social]]
+name = "Associated Press"
+platform = "bluesky"
+handle = "apnews.com"
+
+[[social]]
+name = "Reuters"
+platform = "bluesky"
+handle = "reuters.com"
+
+[[social]]
+name = "The New York Times"
+platform = "bluesky"
+handle = "nytimes.com"
+
+[[social]]
+name = "The Washington Post"
+platform = "bluesky"
+handle = "washingtonpost.com"
+
+[[social]]
+name = "The Guardian"
+platform = "bluesky"
+handle = "theguardian.com"
+
+[[social]]
+name = "CNN"
+platform = "bluesky"
+handle = "cnn.com"
+
+[[social]]
+name = "Al Jazeera English"
+platform = "bluesky"
+handle = "aljazeera.com"
+
+[[social]]
+name = "NPR"
+platform = "bluesky"
+handle = "npr.org"
+
+[[social]]
+name = "ProPublica"
+platform = "bluesky"
+handle = "propublica.org"
+
+[[social]]
+name = "Bellingcat"
+platform = "bluesky"
+handle = "bellingcat.com"
+
+# Examples to copy (off until you remove the leading #). Mastodon tag feeds are noisy and mixed-language, and Reddit
+# rate-limits quickly, so neither is on by default.
+# [[social]]
+# name = "Mastodon #breakingnews"
+# platform = "mastodon"
+# handle = "#breakingnews@mastodon.social"
+# kind = "all"
+#
+# [[social]]
+# name = "r/worldnews"
+# platform = "reddit"
+# handle = "r/worldnews"
+# kind = "all"
+
+# Optional: open links through open-source privacy front ends instead of the platform's own site.
+# Use an address you trust; leave a line out to keep the original link.
+# [open_with]
+# reddit = "redlib.example.org"
+# youtube = "piped.example.org"

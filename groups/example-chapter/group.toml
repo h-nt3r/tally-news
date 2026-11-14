@@ -1,0 +1,72 @@
+# Example Chapter: a Tally News group.
+# This one file is the whole group: who it follows and a few settings. Edit it in any text editor, then run ./group.sh example-chapter
+
+name = "Example Chapter"
+tagline = "News from the outlets that matter to us."
+
+# Where the outlet list starts:
+#   "defaults" = the full default list in config/sources.toml, then your changes below
+#   "none"     = only the outlets you add below
+base = "none"
+
+# port = 8771   # the address the group's page is served on, http://localhost:<port>
+
+[settings]
+# Anything in [settings] of config/sources.toml can be changed just for this group. Examples:
+hours_back = 72      # show the last 3 days instead of 36 hours (good for a group that follows slower outlets)
+summaries = false    # skip the machine-written summaries
+# max_videos = 6
+
+# ---- Outlets ----
+# Add an outlet with:  .venv/bin/python groups.py add example-chapter https://their-website.org
+# or copy a block like this by hand. lean is yours to set: left, center or right. topic: us, world or tech.
+# Local news can go under any topic; "us" is usually right.
+#
+# [[feeds]]
+# name = "Example Neighborhood Paper"
+# url = "https://example.org/feed"
+# site = "https://example.org"
+# lean = "center"
+# topic = "us"
+
+# Remove a default outlet this group never wants to see (only has an effect when base = "defaults"):
+#
+# [[remove]]
+# kind = "feeds"
+# name = "ZeroHedge"
+
+# Relabel a default outlet for this group:
+#
+# [[override]]
+# kind = "feeds"
+# name = "Newsweek"
+# lean = "right"
+
+[[feeds]]
+name = "Labor Notes"
+url = "https://labornotes.org/feed"
+site = "https://labornotes.org/feed"
+lean = "left"
+topic = "us"
+
+[[feeds]]
+name = "The Texas Tribune"
+url = "https://www.texastribune.org/feed/"
+site = "https://www.texastribune.org/"
+lean = "center"
+topic = "us"
+
+[[feeds]]
+name = "The American Conservative"
+url = "https://www.theamericanconservative.com/feed/"
+site = "https://www.theamericanconservative.com/"
+lean = "right"
+topic = "us"
+
+[[feeds]]
+name = "Democracy Now (page)"
+url = "https://www.democracynow.org"
+method = "page"
+lean = "left"
+topic = "us"
+link_contains = "/2026/"

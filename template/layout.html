@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="referrer" content="no-referrer">
+<meta name="built" content="{built}">
+<meta name="description" content="{tagline}">
+<meta name="theme-color" content="#f5f6f8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d1117" media="(prefers-color-scheme: dark)">
+<title>{title}</title>
+<link rel="stylesheet" href="{base}style.css">
+<script src="{base}app.js" defer></script>
+<script src="{base}clips.js" defer></script>
+</head><body data-page="{page}" data-base="{base}">
+<!--
+THESIS: A news-aggregator utility that looks like the category it belongs to, with every rule, source and label in plain view; refuses mystique; machine-written text is always labelled, and any stated perspective is added later and kept separate.
+OWN-WORLD: The category standard played straight: white and near-black surfaces, system sans, one teal accent for actions, muted blue, gray and red for left, center and right always paired with a word; light and dark by device.
+STORY: A reader sees how each side covers a story, why it is listed, and can change sources, filters and settings, or fork the code.
+FIRST VIEWPORT: Header with name and nav, section tabs, compact Show controls with the ordering rule, a swipeable strip of tall clip cards, then the Videos row (six on desktop, the rest a tap away), then the first story with its coverage bar.
+FORM: Category standard (the standing exit), AllSides, Feedly and Ground News as the bar; seed 3394116d.
+FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
+-->
+<a class="skip" href="#main">Skip to main content</a>
+<header class="top"><div class="top-in">
+<a class="brand" href="{base}index.html" aria-label="{site_name}, home"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="5" width="5" height="14" rx="2" fill="var(--left)"/><rect x="9.5" y="5" width="5" height="14" rx="2" fill="var(--center)"/><rect x="17" y="5" width="5" height="14" rx="2" fill="var(--right)"/></svg><span>{site_name}</span></a>
+<nav class="primary" aria-label="Main">{primary_nav}</nav>
+</div></header>
+<main id="main" tabindex="-1">{content}</main>
+<footer class="foot"><div class="foot-in">
+<p><b>How this works, in one line:</b> stories are ordered by how many different outlets covered them, then by recency. Nothing learns from you.</p>
+<p>Popularity labels link to the platform itself: Mastodon's trending links, Bluesky's feed for the topic, or the Hacker News discussion.</p>
+<p>Left, center and right are one maintainer's judgment, not facts. <a href="{base}sources.html">See every source and its label.</a></p>
+<p>Numbers on this site are counts and timings you could recount by hand. <a href="{base}methods.html">How each one is made</a>, <a href="{base}archive.html">the archive of past stories</a>, and <a href="{base}data/latest.json">the data behind this page</a> as a JSON file.</p>
+<p>{source_line}</p>
+</div></footer>
+</body></html>
