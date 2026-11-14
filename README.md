@@ -143,6 +143,10 @@ There are two copies of the page. The **default dashboard** (`site/`, built by `
 - **Keep it running without a terminal.** `./schedule.sh workbench-install` (add `--lan` for the read-only phone view) installs a background job that starts the workbench at log-in, keeps it running, and rebuilds every 20 minutes, even after the Mac wakes from sleep. `./schedule.sh workbench-status` shows how fresh it is and `./schedule.sh workbench-uninstall` removes it. Stop a copy running in a terminal first, because only one can use the port.
 - **Rebuilds take about a minute.** Changes show up after you press "Rebuild now", and it rebuilds on its own every 20 minutes while it is running.
 
+## Publishing
+
+`publish.py` sends the finished `site/` folder to a Git repository that GitHub Pages serves. It does nothing unless you create `publish.local.toml` (not saved to git) with `repo = "https://github.com/you/your-site.git"`; see the "Put it on the web" section on the Run your own page. The public demo is at https://h-nt3r.github.io/tally-news-site/.
+
 ## License
 
 Tally News is licensed under the **GNU Affero General Public License v3.0** (see `LICENSE`). In plain terms: you may run, change and share it, including for your group's own copy. If you run a modified version for other people to use over the web, you must make your changes available to them under the same license. Third-party code keeps its own license: `template/vendor/` holds hls.js (see `template/vendor/LICENSE-hls.js.txt`). The local language model and llama.cpp are downloaded by you and are not part of this repository.

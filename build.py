@@ -19,6 +19,7 @@ import threading
 import time
 import tomllib
 import pages
+import publish
 import summaries
 import urllib.error
 import urllib.parse
@@ -1740,6 +1741,10 @@ def main():
             write_atomic(site / "index.html", page(SITE_NAME, "news", index_content(datetime.now().strftime("%b %d, %-I:%M %p")), built2))
             write_atomic(site / "build.json", json.dumps({"built": built2, "articles": len(articles), "stories": stories}))
             tick("front page refreshed with new summaries")
+    if "--group" not in sys.argv:  # a group's pages are its own; only the main site is published, and only when publish.local.toml exists
+        report = publish.run(site)
+        if report:
+            print(f"  {report}")
 
 
 if __name__ == "__main__":

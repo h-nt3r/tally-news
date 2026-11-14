@@ -18,3 +18,7 @@ tools/
 # groups: the group.toml files are the product; their builds and archives are local
 groups/*/site/
 groups/*/history/
+
+# where and whether to publish this site (local only; a fork never publishes by accident)
+publish.local.toml
+.public-export.sh

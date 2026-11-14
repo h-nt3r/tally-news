@@ -9,6 +9,8 @@
 </dl>
 <p>Until it is published, the code is the project folder this site was built from.</p>
 
+<h2 id="publish">Put it on the web</h2>
+<p>The page is plain files, so any static host works. <code>publish.py</code> sends the finished <code>site/</code> folder to a Git repository served by GitHub Pages. It stays off until you create a file named <code>publish.local.toml</code> (it is not saved to git) with <code>repo</code>, optionally <code>branch</code>, <code>min_minutes</code> (at most one push that often; default 10) and <code>exclude_thumbnails</code>. After each build it keeps a single commit, force-pushes it, and prints one line to the build log. Only the finished pages are sent: never your history, cache, logs or settings. Preview frames and video thumbnails are small copies of other people&rsquo;s images; set <code>exclude_thumbnails = true</code> to leave them out. The computer that builds the site has to be on for the public copy to stay current; when it is not, the page&rsquo;s own &ldquo;updated&rdquo; time shows how old it is.</p>
 <h2>Run it on your computer</h2>
 <p>It was built and tested on a Mac. You need Python 3.11 or newer.</p>
 <ol>

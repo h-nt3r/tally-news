@@ -11,7 +11,7 @@
 [settings]
 repo_url = "https://github.com/h-nt3r/tally-news"   # the footer links here; empty shows "not published yet"
 license = "AGPL-3.0"                                 # shown in the footer, linked to LICENSE in the repo
-base_url = ""        # where this site is hosted, e.g. "https://news.example.org/"; citations carry it. Leave empty until it is public
+base_url = "https://h-nt3r.github.io/tally-news-site/"        # where this site is hosted, e.g. "https://news.example.org/"; citations carry it. Leave empty until it is public
 hours_back = 36          # only show items newer than this
 max_per_feed = 40        # stops one chatty outlet from dominating
 max_videos = 12
