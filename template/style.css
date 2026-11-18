@@ -12,13 +12,13 @@
   --radius:12px;--pad:16px;
 }
 @media (prefers-color-scheme:dark){:root{
-  --bg:#0d1117;--surface:#161b22;--line:#262d38;--line-2:#445063;--ctl:#6d7889;--ink:#e7ebf0;--ink-2:#9ba6b5;
+  --bg:#000;--surface:#0e0e0e;--line:#222;--line-2:#4a4a4a;--ctl:#808080;--ink:#ededed;--ink-2:#a3a3a3;
   --accent:#2dd4bf;--accent-ink:#06201d;
   /* solid marks validated with the dataviz checker: blue, gray and red stay separable in dark; center is a deliberate neutral */
-  --left:#5890ee;--left-ink:#a8c8ff;--left-bg:#16253f;
-  --center:#b9c0cc;--center-ink:#c3ccd8;--center-bg:#232a35;
-  --right:#d9695f;--right-ink:#ffb4ad;--right-bg:#3a1c1b;
-  --warn-ink:#f0c36d;--warn-bg:#33270f;--warn-line:#6b531a;
+  --left:#5890ee;--left-ink:#a8c8ff;--left-bg:#0f1829;
+  --center:#bdbdbd;--center-ink:#c8c8c8;--center-bg:#1f1f1f;
+  --right:#d9695f;--right-ink:#ffb4ad;--right-bg:#2b1413;
+  --warn-ink:#f0c36d;--warn-bg:#261c08;--warn-line:#6b531a;
 }}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -361,9 +361,9 @@ del{color:var(--ink-2);text-decoration:line-through}
 .clips{list-style:none;margin:8px calc(-1 * var(--pad)) 0 0;padding:0 var(--pad) 8px 0;display:grid;grid-auto-flow:column;grid-auto-columns:min(44vw,172px);gap:10px;overflow-x:auto;scroll-snap-type:x proximity;scrollbar-width:thin}
 @media (min-width:720px){.clips{grid-auto-flow:row;grid-auto-columns:auto;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));overflow:visible;margin-right:0;padding-right:0}}
 .clip{display:flex;flex-direction:column;gap:6px;scroll-snap-align:start;min-width:0}
-.clip-card{position:relative;display:block;width:100%;aspect-ratio:9/16;padding:0;border:0;border-radius:12px;overflow:hidden;background:#1b2330;color:#fff;font:inherit;text-align:left;text-decoration:none;cursor:pointer}
+.clip-card{position:relative;display:block;width:100%;aspect-ratio:9/16;padding:0;border:0;border-radius:12px;overflow:hidden;background:#1a1a1a;color:#fff;font:inherit;text-align:left;text-decoration:none;cursor:pointer}
 .clip-poster{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-.clip-poster.blank{background:#1b2330}
+.clip-poster.blank{background:#1a1a1a}
 .clip-play{position:absolute;top:44%;left:50%;display:grid;place-items:center;width:52px;height:52px;margin:-26px 0 0 -26px;border-radius:50%;background:rgba(0,0,0,.6)}
 .clip-play svg{margin-left:2px;fill:#fff}
 .clip-scrim{position:absolute;left:0;right:0;bottom:0;display:flex;flex-direction:column;gap:2px;padding:8px 10px 10px;background:linear-gradient(to top,rgba(0,0,0,.85) 55%,rgba(0,0,0,0))}
@@ -378,7 +378,7 @@ del{color:var(--ink-2);text-decoration:line-through}
 .clip-card:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 
 /* the viewer: always dark, whatever the page theme, because it is showing video */
-.viewer{position:fixed;inset:0;z-index:100;background:#06080b;color:#fff}
+.viewer{position:fixed;inset:0;z-index:100;background:#000;color:#fff}
 .v-scroll{height:100%;overflow-y:auto;scroll-snap-type:y mandatory;overscroll-behavior:contain;outline:none}
 @media (prefers-reduced-motion:no-preference){.v-scroll{scroll-behavior:smooth}}
 .v-end{flex-direction:column;gap:16px;padding:24px;text-align:center;font-size:17px}
@@ -446,7 +446,7 @@ html.viewing{overflow:hidden}
 .v-end{flex-direction:column;gap:16px;padding-left:24px;padding-right:24px;text-align:center;font-size:17px}
 .v-stage{position:relative;height:100%;width:auto;max-width:100vw;aspect-ratio:9/16;background:#000;overflow:hidden}
 @media (min-width:720px){.v-stage{max-height:860px;border-radius:14px}}
-.v-controls{position:fixed;left:0;right:0;bottom:0;z-index:6;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:#0b0e12;border-top:1px solid rgba(255,255,255,.18)}
+.v-controls{position:fixed;left:0;right:0;bottom:0;z-index:6;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:#000;border-top:1px solid rgba(255,255,255,.18)}
 .v-controls button{min-width:64px;min-height:44px;padding:0 16px;border:1px solid rgba(255,255,255,.55);border-radius:99px;background:transparent;color:#fff;font:600 15px var(--font);cursor:pointer}
 .v-controls button:focus-visible,.v-info a:focus-visible,.v-end .btn:focus-visible{outline:3px solid #fff;outline-offset:2px}
 .v-pos{flex:1;text-align:center;font-size:14px;font-weight:600;color:#e6ebf2}
