@@ -136,6 +136,12 @@ components:
     textColor: "{colors.ink}"
     rounded: "{rounded.lg}"
     padding: "12px 16px 14px"
+  view-control:
+    backgroundColor: "{colors.surface}"
+    textColor: "{colors.ink-muted}"
+    rounded: "{rounded.lg}"
+    padding: "4px"
+    height: "52px"
 ---
 
 # Design System: News Digest (open news aggregator)
@@ -228,13 +234,14 @@ Softly rounded rectangles with a few fixed radii: 12px for panels, story cards a
 ## Components
 
 ### Navigation
-- **Main nav:** four destinations rendered as text links in the header (desktop) with a 3px teal inset underline on the current page; on phone a fixed bottom tab bar of equal-width items with a 24px line icon over a 12px label, current item colored teal. Minimum 44px tall (56px on phone).
+- **Main nav:** four destinations (News, Latest, Sources, Settings; "Run your own" lives in the footer) rendered as text links in the header (desktop) with a 3px teal inset underline on the current page; on phone a fixed bottom tab bar of equal-width items with a 24px line icon over a 12px label, current item colored teal. Minimum 44px tall (56px on phone).
 - **Section tabs:** a sticky strip below the header, scrolling horizontally if needed, 15px 600-weight links with a teal underline for the current section; on desktop it is prefixed by a muted "Jump to" label.
 - **Brand:** the three-bar mark beside the site name in 18px bold.
 
-### Show controls (filter panel)
-- **Desktop:** a white panel titled "Show" with three switch rows (Left, Center, Right pills), the ordering rule below a hairline, and links to All settings and Sources.
-- **Phone/tablet:** the same buttons as wrapped 44px pill chips. On: ink border. Off: strong-line border, 60% opacity and line-through. The pill and badge lose their fill inside a chip.
+### View control (temporary lens on the feed)
+- **Where:** a segmented control under the search box on the news page: All sides, Left, Center, Right, one 44px button each in a 12px-radius bordered tray. The pressed button gets the page background and an inset strong-line ring; the lean buttons carry the pill's dot and word with no fill. On phone the tray spans the width.
+- **Behaviour:** a view is temporary and lives in the address (`?show=left`, `?show=left,right`, `?show=all`); Settings hold only the defaults. Whenever the view or Settings hide anything, a chip line below says so ("Showing Left only. Show all sides") and each story row adds "· N hidden" after its outlet count.
+- **Desktop rail:** a white panel with the ordering rule and links to Defaults in Settings, Sources and Archive. Below 1000px the panel is not drawn; the rule lives in the footer.
 
 ### Switch row
 - A whole-row 44px button with a label (15px 600) and optional description (13px muted), and a 44x26 track with a 20px white thumb. On: teal track and thumb moved 18px. Off: `line-strong` track. Used in Show controls, Settings and Sources.
@@ -308,7 +315,8 @@ When the rule finds any, a "Blindspots" section opens the topic sections and joi
 
 - **Story label (review pass):** a story's heading is a generated neutral label of shared words with dots between phrases, never one outlet's headline; if nothing is shared it is the earliest headline with its outlet named beneath. The facts line says "among the outlets we track". On story pages every time carries its UTC beside it.
 - **Absence:** a side that did not cover a story is an empty dashed slot at the end of the coverage bar, a dashed neutral badge ("Not covered by"), and a dashed empty box in its column. Teal stays reserved for actions.
-- **Phone controls:** the Show panel folds to one line ("Showing all sides" / what is hidden, with "Change"); the page says when any switch is changing what you see. Wide screens keep the panel open in the side rail.
+- **Place and memory:** an open story has an address (`#s-id`) and Back closes it; the clip viewer is a history entry too, so Back closes it. "New since" survives reloads (the baseline moves after 30 quiet minutes), with "New only" and "Mark all seen"; badges read "New" or "+N new". The feed ends with "You're caught up as of ...".
+- **Keyboard:** j and k move between stories, o opens one, / searches, g then h, l or s changes page, ? lists them (hidden on touch devices).
 - **Disclosures** (timeline, table, "Show N more") carry a drawn chevron. A skip link leads the page.
 - **Clip viewer controls:** one bottom bar (Close, position "3 of 18", Mute; Previous and Next on wide screens), a short swipe hint that disappears, a story link as a filled button, the platform link quiet, and the unchecked reminder as a bordered chip at normal size. Cards keep one fixed footer line whether or not they match a story, and the play mark sits in a corner.
 - **Citation:** a block that wraps in full, with Copy as the main action, the time zone named, and UTC times.

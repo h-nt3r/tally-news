@@ -469,7 +469,7 @@ ICONS = {
     "fork": '<circle cx="7" cy="6" r="2"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="8" r="2"/><path d="M7 8v8M17 10v1a3 3 0 0 1-3 3h-4a3 3 0 0 0-3 3"/>',
 }
 PAGES = [("index.html", "news", "News"), ("latest.html", "latest", "Latest"), ("sources.html", "sources", "Sources"),
-         ("settings.html", "settings", "Settings"), ("fork.html", "fork", "Run your own")]
+         ("settings.html", "settings", "Settings")]
 LAYOUT = (ROOT / "template" / "layout.html").read_text()
 WORKBENCH = False  # True when building your own copy (python build.py --workbench), see workbench.py
 WB_REPORT = None   # what the workbench changed from the defaults
@@ -560,7 +560,8 @@ def render_singles(items, topic="tech"):
 
 
 def story_row(m):
-    return (f'<li data-lean="{m["lean"]}" data-source="a:{e(m["source"])}">'
+    when = m.get("when")
+    return (f'<li data-lean="{m["lean"]}" data-source="a:{e(m["source"])}"{f" data-t={int(when.timestamp())}" if when else ""}>'
             f'<a class="hl" href="{e(m["link"])}" target="_blank" rel="noopener">{e(m["title"])}</a>'
             f'<span class="src"><span>{e(m["source"])}</span></span></li>')
 
@@ -1138,31 +1139,29 @@ def news_page(sections, videos, updated, counts, summary, panels, hours_back, po
                  f'<div class="rv-list" role="region" aria-label="Videos, newest first" tabindex="0">{rail_videos}</div>'
                  f'<button class="btn rv-more" id="railMore" type="button" aria-expanded="false" hidden>Show all videos</button>'
                  f'<p class="none-left" hidden>Everything here is hidden by your settings.</p></section>') if rail_videos else ""
-    clip_count = f'{counts["clips"]} clips &middot; ' if CLIPS_ON else ""
-    index = (f'{clip_count}{counts["videos"]} videos &middot; {counts["stories"]} stories &middot; '
-             f'<a href="latest.html">{counts["headlines"]:,} headlines</a> &middot; <a href="sources.html">{counts["sources"]} sources</a>')
+    index = (f'{counts["stories"]} stories &middot; <a href="latest.html">{counts["headlines"]:,} headlines</a> '
+             f'&middot; <a href="sources.html">{counts["sources"]} sources</a>')
     return f"""<div class="tabs" id="tabs"><div class="tabs-in wrap" role="navigation" aria-label="Jump to section"><span class="jump">Jump to</span>{tabs}</div></div>
 <div class="wrap"><div class="layout">
 <div class="rail">
-<aside class="side" aria-label="What to show">
-<details class="side-d" id="sideD" open>
-<summary><span class="side-sum" id="sideSum">Showing all sides</span><span class="side-change">Change</span></summary>
-<p class="side-title">Show</p>
-<div class="toggles">
-{toggle("lean.left", pill("left"))}
-{toggle("lean.center", pill("center"))}
-{toggle("lean.right", pill("right"))}
-</div>
+<aside class="side" aria-label="How this page works">
 <p class="rule"><b>How items are ordered.</b> By how many different outlets covered a story, then by recency. Nothing learns from you. <a href="fork.html#ordering">Details</a></p>
-<p class="side-links"><a href="settings.html">All settings</a> &middot; <a href="sources.html">Sources</a> &middot; <a href="archive.html">Archive</a></p>
-</details>
+<p class="side-links"><a href="settings.html">Defaults in Settings</a> &middot; <a href="sources.html">Sources</a> &middot; <a href="archive.html">Archive</a></p>
 </aside>
 {rail_html}
 </div>
 <div class="feed">
+<h1 class="sr">{e(SITE_NAME)}: today&rsquo;s news</h1>
 {f'<p class="tagline">{e(GROUP_TAGLINE)}</p>' if GROUP_TAGLINE else ""}<form class="home-find" action="latest.html" role="search"><label class="sr" for="hq">Search all headlines</label><input id="hq" name="q" type="search" autocomplete="off" placeholder="Search every headline"><button class="btn" type="submit">Search</button></form>
-<p class="stamp">Updated {e(updated)} &middot; {index} <span class="since" id="since" hidden></span></p>
-<p class="switch-note" id="switchNote" hidden>Some outlets or sides are switched off, so the counts and timing facts on each story follow what you have left on. The summary line counts everything. <a href="settings.html">Change in Settings</a></p>
+<div class="view" id="view" role="group" aria-label="Show coverage from">
+<button type="button" data-view="all" aria-pressed="true">All sides</button>
+<button type="button" data-view="left" aria-pressed="false">{pill("left")}</button>
+<button type="button" data-view="center" aria-pressed="false">{pill("center")}</button>
+<button type="button" data-view="right" aria-pressed="false">{pill("right")}</button>
+</div>
+<p class="view-chip" id="viewChip" role="status" hidden><span id="viewText"></span> <button type="button" class="linkbtn" id="viewClear" hidden>Show all sides</button> <a href="settings.html" id="viewSet" hidden>Change in Settings</a></p>
+<p class="stamp">Updated {e(updated)} &middot; {index}</p>
+<p class="since-row" id="sinceRow" hidden><span class="since" id="since"></span> <button type="button" class="linkbtn" id="newOnly" aria-pressed="false" hidden>New only</button> <button type="button" class="linkbtn" id="markSeen" hidden>Mark all seen</button></p>
 {breaking_html}{posts_html}
 {sections}
 {render_today(summary, panels, hours_back)}
@@ -1170,7 +1169,7 @@ def news_page(sections, videos, updated, counts, summary, panels, hours_back, po
 <div class="videos" role="region" aria-label="Videos, scrolls sideways" tabindex="0">{videos}</div>
 <button class="btn all-videos" id="allVideos" type="button" aria-expanded="false" hidden>Show all videos</button>
 <p class="none-left" hidden>Everything here is hidden by your settings.</p></section>
-<p class="end">That is everything in this update. Nothing further is queued for you.</p>
+<p class="end">You&rsquo;re caught up as of {e(updated)}. Nothing further is queued for you.</p>
 </div></div></div>"""
 
 

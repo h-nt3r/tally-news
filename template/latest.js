@@ -82,13 +82,13 @@
       mark(a, it[3], ts);
       li.appendChild(a);
       if (it[5]) {
-        var s = el("a", "lt-story", "Part of a story"); s.href = BASE + "story/" + it[5] + ".html";
+        var s = el("a", "lt-story", "See how it was covered"); s.href = BASE + "story/" + it[5] + ".html";
         li.appendChild(s);
       }
       list.appendChild(li);
     }
   }
-  function run() {
+  function run(push) {
     if (!data) return;
     var ts = terms(q.value), allowedTotal = 0;
     hidden = 0;
@@ -110,17 +110,32 @@
     var msg = view.length ? (view.length.toLocaleString() + " headline" + (view.length === 1 ? "" : "s") + what + ", newest first") : "No headlines" + what + " in the last " + data.days + " days";
     if (hidden) msg += ". " + hidden.toLocaleString() + " more " + (hidden === 1 ? "is" : "are") + " hidden by your Settings";
     status.textContent = msg + ".";
-    try { var u = new URL(location.href); if (q.value.trim()) u.searchParams.set("q", q.value.trim()); else u.searchParams.delete("q"); history.replaceState(null, "", u); } catch (err) {}
+    try {  // typing keeps one entry up to date; pressing Enter adds one, so Back returns to the previous search
+      var u = new URL(location.href), had = u.search;
+      if (q.value.trim()) u.searchParams.set("q", q.value.trim()); else u.searchParams.delete("q");
+      if (push && u.search !== had) history.pushState(null, "", u); else history.replaceState(null, "", u);
+    } catch (err) {}
   }
-  more.addEventListener("click", function () {
+  window.addEventListener("popstate", function () {
+    try { q.value = new URLSearchParams(location.search).get("q") || ""; } catch (err) {}
+    run(false);
+  });
+  function loadMore() {
     var to = Math.min(shown + PAGE, view.length);
     drawRows(shown, to, terms(q.value));
     shown = to;
     more.hidden = shown >= view.length;
     more.textContent = "Show " + Math.min(PAGE, view.length - shown) + " more";
-  });
+  }
+  more.addEventListener("click", loadMore);
+  if ("IntersectionObserver" in window) {  // reaching the end of the list loads the next page; the button stays as the fallback
+    var io = new IntersectionObserver(function (entries) {
+      if (entries[0].isIntersecting && !more.hidden) { loadMore(); io.unobserve(more); io.observe(more); }
+    }, {rootMargin: "400px"});
+    io.observe(more);
+  }
   q.addEventListener("input", function () { clearTimeout(timer); timer = setTimeout(run, 150); });
-  document.getElementById("lform").addEventListener("submit", function (ev) { ev.preventDefault(); run(); });
+  document.getElementById("lform").addEventListener("submit", function (ev) { ev.preventDefault(); run(true); });
   chips.addEventListener("click", function (ev) {
     var b = ev.target.closest("button"); if (!b) return;
     topic = b.getAttribute("data-topic");

@@ -23,17 +23,47 @@
       if (old) S = merge(S, {lean: old});
     }
   } catch (err) {}
-  var prevVisit = 0;
-  try { prevVisit = parseInt(localStorage.getItem(LAST) || "0", 10) || 0; } catch (err) {}
+  /* "new since your last visit" has to survive a reload, so the baseline only moves after 30 quiet minutes away */
+  var SEEN = "newsdigest.lastSeen", GAP = 30 * 60, prevVisit = 0;
+  try {
+    var nowS = Math.floor(Date.now() / 1000);
+    var lv = parseInt(localStorage.getItem(LAST) || "0", 10) || 0, ls = parseInt(localStorage.getItem(SEEN) || "0", 10) || 0;
+    if (lv && ls && nowS - ls > GAP) { lv = ls; localStorage.setItem(LAST, String(lv)); }
+    else if (!lv) localStorage.setItem(LAST, String(nowS));  // first visit: nothing to compare with yet
+    prevVisit = lv;
+  } catch (err) {}
+
+  /* a view is temporary and lives in the address (?show=left,right); Settings only hold the defaults */
+  var VIEW = null, NEWONLY = false;
+  try {
+    var want = new URLSearchParams(location.search).get("show");
+    if (want) {
+      var list = want === "all" ? SIDES.slice() : want.split(",").filter(function (x) { return SIDES.indexOf(x) >= 0; });
+      if (list.length) VIEW = list;
+    }
+  } catch (err) {}
+  function on(l) { return VIEW ? VIEW.indexOf(l) >= 0 : S.lean[l]; }
+  function cap(l) { return l.charAt(0).toUpperCase() + l.slice(1); }
+  function setView(list) {
+    var all3 = SIDES.every(function (l) { return list.indexOf(l) >= 0; });
+    VIEW = SIDES.every(function (l) { return S.lean[l] === (list.indexOf(l) >= 0); }) ? null : list;
+    try {
+      var u = new URL(location.href);
+      if (VIEW) u.searchParams.set("show", all3 ? "all" : VIEW.join(",")); else u.searchParams.delete("show");
+      u.search = u.searchParams.toString().replace(/%2C/g, ",");
+      history.replaceState(history.state, "", u);
+    } catch (err) {}
+    applyAll();
+  }
 
   function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (err) {} }
   window.tallyClock = function (d) { return clock(d); };
-  window.tallyAllowed = function (lean, source) { return lean === "none" || (S.lean[lean] && S.off.indexOf(source) < 0); };  // for pages that draw their own lists
+  window.tallyAllowed = function (lean, source) { return lean === "none" || (on(lean) && S.off.indexOf(source) < 0); };  // for pages that draw their own lists
   function all(root, sel) { return Array.prototype.slice.call(root.querySelectorAll(sel)); }
   function get(path) { var p = path.split("."); return p.length === 2 ? S[p[0]][p[1]] : S[p[0]]; }
   function set(path, v) { var p = path.split("."); if (p.length === 2) S[p[0]][p[1]] = v; else S[p[0]] = v; }
   function shown(el) {
-    var sideOk = el.dataset.lean === "none" || S.lean[el.dataset.lean];  // clips and posts have no side
+    var sideOk = el.dataset.lean === "none" || on(el.dataset.lean);  // clips and posts have no side
     return sideOk && S.off.indexOf(el.dataset.source) < 0;
   }
 
@@ -44,13 +74,20 @@
     all(document, "[data-set]").forEach(function (b) { b.setAttribute("aria-checked", String(get(b.dataset.set))); });
     var note = document.getElementById("switchNote");
     if (note) note.hidden = !filtersActive();
-    var sum = document.getElementById("sideSum");
-    if (sum) {
-      var on = ["left", "center", "right"].filter(function (l) { return S.lean[l]; }).map(function (l) { return l[0].toUpperCase() + l.slice(1); });
-      var text = !filtersActive() ? "Showing all sides"
-        : "Showing " + (on.length === 3 ? "all sides" : on.length ? on.join(", ") : "no sides") +
-          (S.off.length ? ", " + S.off.length + (S.off.length === 1 ? " outlet" : " outlets") + " off" : "");
-      sum.textContent = text;
+    var vw = document.getElementById("view");
+    if (vw) {  // the view control above the feed, and a chip that says so whenever anything is filtered
+      var cur = SIDES.filter(on);
+      all(vw, "button").forEach(function (b) {
+        var v = b.dataset.view;
+        b.setAttribute("aria-pressed", String(v === "all" ? cur.length === 3 : cur.length === 1 && cur[0] === v));
+      });
+      var cut = cur.length < 3, offN = S.off.length, parts = [];
+      if (cut) parts.push(cur.length ? "Showing " + cur.map(cap).join(" and ") + " only" : "No sides showing");
+      if (offN) parts.push(offN + (offN === 1 ? " outlet is" : " outlets are") + " off in Settings");
+      document.getElementById("viewChip").hidden = !(cut || offN);
+      document.getElementById("viewText").textContent = parts.join(" · ") + ".";
+      document.getElementById("viewClear").hidden = !cut;
+      document.getElementById("viewSet").hidden = !offN;
     }
   }
 
@@ -64,7 +101,7 @@
   }
   function pad2(n) { return (n < 10 ? "0" : "") + n; }
   function filtersActive() {
-    return S.off.length > 0 || !S.lean.left || !S.lean.center || !S.lean.right;
+    return S.off.length > 0 || !on("left") || !on("center") || !on("right");
   }
   function ticks(span) {
     var steps = [3600, 7200, 21600, 43200, 86400, 172800], step = 604800, out = [];
@@ -137,25 +174,30 @@
     all(document, ".briefs li").forEach(function (li) { li.hidden = !shown(li); });
     all(document, ".clip").forEach(function (p) { p.hidden = !shown(p); });
     all(document, ".story").forEach(function (st) {
-      var total = 0, cols = 0, counts = {left: 0, center: 0, right: 0};
+      var total = 0, cols = 0, every = 0, fresh = 0, counts = {left: 0, center: 0, right: 0};
       all(st, ".group").forEach(function (g) {
         var lean = g.dataset.lean, n = 0, extra = 0;
         all(g, "li[data-lean]").forEach(function (li) {
           var ok = shown(li);
           li.hidden = !ok;
-          if (ok) { n++; if (li.closest("details")) extra++; }
+          every++;
+          if (ok) { n++; if (li.closest("details")) extra++; if (prevVisit && +li.dataset.t > prevVisit) fresh++; }
         });
         var det = g.querySelector("details");
         if (det) { det.hidden = extra === 0; det.querySelector("summary").textContent = "Show " + extra + " more"; }
         g.querySelector(".n").textContent = n;
         g.querySelector(".none").hidden = n > 0;
-        g.hidden = !S.lean[lean];
+        g.hidden = !on(lean);
         if (!g.hidden) cols++;
         counts[lean] = n;
         total += n;
       });
-      st.hidden = total === 0;
+      var t = parseInt(st.dataset.t, 10), isNew = !!(S.newMarks && prevVisit && t > prevVisit);
+      st.hidden = total === 0 || (NEWONLY && !isNew);
       st.querySelector(".n-total").textContent = total;
+      var cnt = st.querySelector(".s-count"), hid = cnt.querySelector(".s-hid");  // what the view hides, so a shorter list is never a mystery
+      if (!hid) { hid = document.createElement("span"); hid.className = "s-hid"; cnt.appendChild(hid); }
+      hid.textContent = every > total ? " · " + (every - total) + " hidden" : "";
       st.querySelector(".w").textContent = total === 1 ? "outlet" : "outlets";
       ["left", "center", "right"].forEach(function (l) {
         st.querySelector('.k[data-lean="' + l + '"] b').textContent = counts[l];
@@ -165,13 +207,16 @@
       st.querySelector(".bar").setAttribute("aria-label",
         "Outlets covering this story: left " + counts.left + ", center " + counts.center + ", right " + counts.right);
       st.querySelector(".groups").style.setProperty("--cols", Math.max(cols, 1));
-      var t = parseInt(st.dataset.t, 10);
-      st.querySelector(".new").hidden = !(S.newMarks && prevVisit && t > prevVisit);
+      var badge = st.querySelector(".new");  // says what changed: the whole story is new, or just some outlets joined it
+      badge.hidden = !isNew;
+      badge.textContent = isNew && fresh > 0 && fresh < total ? "+" + fresh + " new" : "New";
       refreshFacts(st);
     });
     all(document, "[data-section]").forEach(function (sec) {
       var any = all(sec, ".video, .story, .briefs li, .clip").some(function (el) { return !el.hidden; }) || !sec.querySelector(".video, .story, .briefs li, .clip");
-      sec.querySelector(".none-left").hidden = any;
+      var none = sec.querySelector(".none-left");
+      none.hidden = any;
+      none.textContent = NEWONLY ? "Nothing new here since you last looked." : "Everything here is hidden by your current view or settings.";
     });
     fitClips();
   }
@@ -246,6 +291,9 @@
   }
 
   document.addEventListener("click", function (ev) {
+    var vb = ev.target.closest("#view button");
+    if (vb) { setView(vb.dataset.view === "all" ? SIDES.slice() : [vb.dataset.view]); return; }
+    if (ev.target.closest("#viewClear")) { setView(SIDES.slice()); return; }
     var sw = ev.target.closest("[data-set]");
     if (sw) { set(sw.dataset.set, !get(sw.dataset.set)); save(); applyAll(); return; }
     var src = ev.target.closest(".src-row .trow");
@@ -336,17 +384,34 @@
     st.classList.toggle("open", on);
     if (on && scroll && st.getBoundingClientRect().top < (document.getElementById("tabs") ? document.getElementById("tabs").offsetHeight : 0) + 4) st.scrollIntoView({block: "start"});
   }
+  /* an open story is a place: it has an address (#s-id) and Back closes it, like going back out of a thread */
+  function storyFromHash() {
+    var n = /^#s-/.test(location.hash) ? document.getElementById(location.hash.slice(1)) : null;
+    return n && n.classList.contains("story") ? n : null;
+  }
   document.addEventListener("click", function (ev) {
     var head = ev.target.closest(".s-head");
     if (!head) return;
     var st = head.closest(".story"), willOpen = head.getAttribute("aria-expanded") !== "true";
-    all(document, ".story.open").forEach(function (o) { if (o !== st) openStory(o, false); });
+    var others = all(document, ".story.open").filter(function (o) { return o !== st; });
+    others.forEach(function (o) { openStory(o, false); });
     openStory(st, willOpen, true);
+    try {
+      var u = new URL(location.href);
+      if (willOpen) {
+        u.hash = st.id;  // switching between stories replaces the entry; opening from nothing adds one
+        if (others.length) history.replaceState({story: st.id}, "", u); else history.pushState({story: st.id}, "", u);
+      } else if (history.state && history.state.story) history.back();
+      else { u.hash = ""; history.replaceState(history.state, "", u.pathname + u.search); }
+    } catch (err) {}
   });
-  if (/^#s-/.test(location.hash)) {
-    var linked = document.getElementById(location.hash.slice(1));
-    if (linked && linked.classList.contains("story")) { openStory(linked, true); linked.scrollIntoView(); }
-  }
+  window.addEventListener("popstate", function () {
+    var linked = storyFromHash();
+    all(document, ".story.open").forEach(function (o) { if (o !== linked) openStory(o, false); });
+    if (linked && !linked.classList.contains("open")) openStory(linked, true);
+  });
+  var first = storyFromHash();
+  if (first) { openStory(first, true); first.scrollIntoView(); }
 
   var railBtn = document.getElementById("railMore");
   if (railBtn) railBtn.addEventListener("click", function () { document.querySelector(".rv-list").classList.toggle("all"); applyAll(); });
@@ -399,6 +464,63 @@
   var allOn = document.getElementById("allOn");
   if (allOn) allOn.addEventListener("click", function () { S.off = []; save(); applyAll(); });
 
+  /* keyboard: j and k move between stories, o opens one, / searches, g then h, l or s changes page, ? lists these */
+  var keysEl = null, keysFrom = null, gAt = 0;
+  function keysPanel(show) {
+    if (!keysEl) {
+      keysEl = document.createElement("section");
+      keysEl.className = "keys"; keysEl.hidden = true;
+      keysEl.setAttribute("aria-label", "Keyboard shortcuts");
+      keysEl.innerHTML = '<div class="keys-head"><h2>Keyboard shortcuts</h2><button type="button" class="linkbtn keys-x">Close</button></div><dl>' +
+        '<div><dt><kbd>j</kbd> <kbd>k</kbd></dt><dd>Next or previous story</dd></div>' +
+        '<div><dt><kbd>o</kbd></dt><dd>Open or close the story</dd></div>' +
+        '<div><dt><kbd>/</kbd></dt><dd>Search headlines</dd></div>' +
+        '<div><dt><kbd>g</kbd> then <kbd>h</kbd></dt><dd>News</dd></div>' +
+        '<div><dt><kbd>g</kbd> then <kbd>l</kbd></dt><dd>Latest</dd></div>' +
+        '<div><dt><kbd>g</kbd> then <kbd>s</kbd></dt><dd>Sources</dd></div>' +
+        '<div><dt><kbd>?</kbd></dt><dd>Show or hide this list</dd></div></dl>';
+      keysEl.querySelector(".keys-x").addEventListener("click", function () { keysPanel(false); });
+      document.body.appendChild(keysEl);
+    }
+    keysEl.hidden = !show;
+    if (show) { keysFrom = document.activeElement; keysEl.querySelector(".keys-x").focus(); }
+    else if (keysFrom && keysFrom.focus) keysFrom.focus();
+  }
+  var keysBtn = document.getElementById("keysBtn");
+  if (keysBtn) keysBtn.addEventListener("click", function () { keysPanel(true); });
+  document.addEventListener("keydown", function (ev) {
+    if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
+    var t = ev.target, tag = (t.tagName || "").toLowerCase(), k = ev.key;
+    if (k === "Escape" && keysEl && !keysEl.hidden) { keysPanel(false); return; }
+    if (tag === "input" || tag === "textarea" || tag === "select" || t.isContentEditable) return;
+    if (document.querySelector(".viewer")) return;  // the clip viewer has its own keys
+    if (gAt && Date.now() - gAt < 1500) {
+      gAt = 0;
+      var go = {h: "index.html", l: "latest.html", s: "sources.html"}[k];
+      if (go) { var a = document.querySelector('nav.primary a[href$="' + go + '"]'); if (a) { ev.preventDefault(); location.href = a.href; } return; }
+    }
+    if (k === "g") { gAt = Date.now(); return; }
+    if (k === "?") { ev.preventDefault(); keysPanel(!keysEl || keysEl.hidden); return; }
+    if (k === "/") {
+      var box = document.getElementById("hq") || document.getElementById("lq");
+      if (box) { ev.preventDefault(); box.focus(); box.select(); }
+      return;
+    }
+    if (document.body.dataset.page !== "news" || (k !== "j" && k !== "k" && k !== "o")) return;
+    var heads = all(document, ".story:not([hidden]) .s-head"), cur = heads.indexOf(document.activeElement);
+    if (!heads.length) return;
+    ev.preventDefault();
+    if (k === "o") { if (cur >= 0) heads[cur].click(); return; }
+    if (cur < 0) {  // nothing focused yet: start from the first story on screen
+      var barH = document.getElementById("tabs") ? document.getElementById("tabs").offsetHeight : 0;
+      cur = heads.length - 1;
+      for (var i = 0; i < heads.length; i++) { if (heads[i].getBoundingClientRect().top >= barH) { cur = i; break; } }
+      heads[cur].focus();
+      return;
+    }
+    heads[Math.max(0, Math.min(heads.length - 1, cur + (k === "j" ? 1 : -1)))].focus();
+  });
+
   /* "first reported 12 min ago": kept current while the page is open */
   function agoTimes() {
     all(document, "time[data-ago]").forEach(function (t) {
@@ -418,13 +540,28 @@
 
   /* news page: new since your last visit, and the section tabs */
   if (document.body.dataset.page === "news") {
-    if (prevVisit && S.newMarks) {
+    var sinceRow = document.getElementById("sinceRow"), since = document.getElementById("since");
+    var onlyBtn = document.getElementById("newOnly"), seenBtn = document.getElementById("markSeen");
+    var paintSince = function () {
+      if (!sinceRow || !prevVisit || !S.newMarks) return;
       var fresh = all(document, ".story").filter(function (st) { return !st.querySelector(".new").hidden; }).length;
-      var since = document.getElementById("since"), d = new Date(prevVisit * 1000);
+      var d = new Date(prevVisit * 1000);
       since.textContent = (fresh ? fresh + " new" : "Nothing new") + " since " + d.toLocaleTimeString([], {hour: "numeric", minute: "2-digit"});
-      since.hidden = false;
+      onlyBtn.hidden = !fresh && !NEWONLY;
+      seenBtn.hidden = !fresh;
+      onlyBtn.setAttribute("aria-pressed", String(NEWONLY));
+      sinceRow.hidden = false;
+    };
+    if (sinceRow) {
+      onlyBtn.addEventListener("click", function () { NEWONLY = !NEWONLY; applyAll(); paintSince(); });
+      seenBtn.addEventListener("click", function () {
+        prevVisit = Math.floor(Date.now() / 1000); NEWONLY = false;
+        try { localStorage.setItem(LAST, String(prevVisit)); } catch (err) {}
+        applyAll(); paintSince();
+      });
     }
-    try { localStorage.setItem(LAST, String(Math.floor(Date.now() / 1000))); } catch (err) {}
+    paintSince();
+    try { localStorage.setItem(SEEN, String(Math.floor(Date.now() / 1000))); } catch (err) {}
 
     var bar = document.getElementById("tabs"), links = all(document, "#tabs a");
     var secs = links.map(function (a) { return document.querySelector(a.getAttribute("href")); });

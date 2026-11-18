@@ -263,9 +263,20 @@
     setTimeout(function () { hint.hidden = true; }, 7000);
     closeBtn.focus();
     document.addEventListener("keydown", onKey);
+    try { if (!(history.state && history.state.tallyClip)) history.pushState({tallyClip: 1}, ""); } catch (err) {}  // so Back closes the viewer
   }
 
+  /* closing from a button goes Back one entry; the popstate that follows does the closing, so Back and Close behave the same */
   function close(quiet) {
+    if (!viewer) return;
+    try { if (!quiet && history.state && history.state.tallyClip) { history.back(); return; } } catch (err) {}
+    shut(quiet);
+  }
+  window.addEventListener("popstate", function () {
+    if (viewer && !(history.state && history.state.tallyClip)) shut(false);
+  });
+
+  function shut(quiet) {
     if (!viewer) return;
     document.removeEventListener("keydown", onKey);
     if (observer) { observer.disconnect(); observer = null; }

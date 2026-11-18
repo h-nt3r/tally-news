@@ -12,7 +12,7 @@
   --radius:12px;--pad:16px;
 }
 @media (prefers-color-scheme:dark){:root{
-  --bg:#000;--surface:#0e0e0e;--line:#222;--line-2:#4a4a4a;--ctl:#808080;--ink:#ededed;--ink-2:#a3a3a3;
+  --bg:#000;--surface:#0e0e0e;--line:#2c2c2c;--line-2:#4a4a4a;--ctl:#808080;--ink:#ededed;--ink-2:#a3a3a3;
   --accent:#2dd4bf;--accent-ink:#06201d;
   /* solid marks validated with the dataviz checker: blue, gray and red stay separable in dark; center is a deliberate neutral */
   --left:#5890ee;--left-ink:#a8c8ff;--left-bg:#0f1829;
@@ -34,7 +34,7 @@ a{color:inherit;text-underline-offset:3px}
 /* header and main navigation */
 .top{background:var(--surface);border-bottom:1px solid var(--line)}
 .top-in{max-width:1160px;margin:0 auto;padding:0 var(--pad);height:56px;display:flex;align-items:center;justify-content:space-between}
-.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px;letter-spacing:-.01em;text-decoration:none}
+.brand{display:flex;align-items:center;min-height:44px;gap:10px;font-weight:700;font-size:18px;letter-spacing:-.01em;text-decoration:none}
 .brand svg{width:26px;height:26px}
 nav.primary{display:flex;gap:4px}
 nav.primary a{display:flex;align-items:center;gap:6px;min-height:44px;padding:0 12px;border-radius:8px;color:var(--ink-2);font-weight:600;font-size:15px;text-decoration:none}
@@ -76,7 +76,8 @@ nav.primary .ic{display:none;fill:none;stroke:currentColor;stroke-width:1.75;str
 .rule b{color:var(--ink)}
 .rule a{color:var(--accent)}
 .side-links{margin:8px 0 0;font-size:13px}
-.side-links a{color:var(--accent);font-weight:600}
+.side-links a{display:inline-block;padding:6px 0;color:var(--accent);font-weight:600}
+.side .rule:first-child{margin-top:0;padding-top:0;border-top:0}
 
 /* switch rows: the whole row is the button */
 .trow{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:44px;padding:6px 0;border:0;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
@@ -170,6 +171,7 @@ h2.sec{margin:28px 0 12px;font-size:20px;line-height:1.3;font-weight:700;letter-
 .group ul{list-style:none;margin:0;padding:0}
 .group li{padding:9px 0;border-top:1px solid var(--line)}
 .group h4+ul li:first-child{border-top:0}
+.groups .hl{padding:2px 0}
 .hl{display:block;font-size:15px;line-height:1.4;font-weight:500;color:var(--ink);text-decoration:none}
 .hl:hover{text-decoration:underline;text-decoration-color:var(--accent)}
 .src{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;margin-top:3px;font-size:12px;color:var(--ink-2)}
@@ -249,6 +251,9 @@ pre code{border:0;padding:0;background:none}
 .row-actions p{margin:0;font-size:14px;color:var(--ink-2);max-width:48ch}
 .btns{display:flex;gap:8px}
 .stamp{margin:0 0 4px;font-size:13px;color:var(--ink-2)}
+.since-row{display:flex;flex-wrap:wrap;align-items:center;gap:0 14px;margin:0 0 4px;font-size:13px}
+.since-row .since::before{content:none}
+.s-hid{color:var(--ink-2);font-weight:400}
 .muted{color:var(--ink-2);font-weight:500}
 html[data-signals="off"] .buzz,html[data-signals="off"] .views{display:none}
 
@@ -613,3 +618,28 @@ a.c-label:hover{text-decoration:underline}
 .blind li{display:flex;flex-direction:column;gap:6px}
 .blind .src{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--ink-2)}
 .sec-note{margin:-6px 0 10px;font-size:13px;color:var(--ink-2);max-width:68ch}
+
+/* view control: a temporary lens on the feed (kept in the address); Settings hold the defaults */
+.view{display:flex;gap:4px;width:max-content;max-width:100%;margin:0 0 10px;padding:4px;background:var(--surface);border:1px solid var(--line);border-radius:12px}
+.view button{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 14px;border:0;border-radius:8px;background:transparent;color:var(--ink-2);font:600 14px var(--font);cursor:pointer}
+.view button:hover{color:var(--ink)}
+.view button[aria-pressed=true]{background:var(--bg);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line-2)}
+.view .pill,.view .badge{background:none;box-shadow:none;padding:0}
+.view-chip{margin:0 0 12px;font-size:13px;line-height:1.5;color:var(--ink-2)}
+.view-chip a{color:var(--accent);font-weight:600}
+@media (max-width:719px){.view{width:100%}.view button{flex:1;padding:0 6px}}
+/* below desktop the rail's ordering note moves to the footer so the news starts at once */
+@media (max-width:999px){.rail .side{display:none}}
+.linkbtn{display:inline-flex;align-items:center;min-height:44px;padding:0 2px;border:0;background:none;color:var(--accent);font:inherit;font-weight:600;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.view-chip .linkbtn,.since-row .linkbtn{min-height:0;padding:12px 2px;margin:-12px 0}  /* a 44px hit area that adds no height to the line */
+.foot .linkbtn{display:inline;min-height:0;padding:0;font-size:13px}
+@media (hover:none){.kb-only{display:none}}
+.keys{position:fixed;z-index:60;right:var(--pad);bottom:var(--pad);width:min(340px,calc(100vw - 2*var(--pad)));padding:12px 16px 14px;background:var(--surface);color:var(--ink);border:1px solid var(--line-2);border-radius:var(--radius);box-shadow:0 8px 28px rgba(0,0,0,.4)}
+@media (max-width:719px){.keys{bottom:calc(72px + env(safe-area-inset-bottom))}}
+.keys-head{display:flex;align-items:center;justify-content:space-between}
+.keys h2{margin:0;font-size:15px}
+.keys dl{margin:4px 0 0}
+.keys dl>div{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-top:1px solid var(--line);font-size:14px}
+.keys dt{white-space:nowrap}
+.keys dd{margin:0;color:var(--ink-2);text-align:right}
+kbd{display:inline-block;min-width:22px;padding:1px 6px;border:1px solid var(--line-2);border-radius:6px;background:var(--bg);font:600 12px var(--font);text-align:center}
