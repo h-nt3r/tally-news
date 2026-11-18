@@ -308,7 +308,7 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere}
 .track::before{content:"";position:absolute;left:0;right:0;top:50%;border-top:1px solid var(--line)}
 .mk{position:absolute;top:50%;left:calc(12px + (100% - 24px) * var(--p));display:grid;place-items:center;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;outline-offset:0}
 .mk::before{content:"";width:10px;height:10px;border-radius:50%;background:var(--c);box-shadow:0 0 0 2px var(--surface)}
-.mk::after{content:attr(data-tip);position:absolute;bottom:100%;left:50%;transform:translateX(-50%);z-index:6;padding:4px 8px;border-radius:6px;background:var(--ink);color:var(--surface);font-size:12px;font-weight:500;white-space:nowrap;pointer-events:none;opacity:0;visibility:hidden}
+.mk::after{content:attr(data-tip);position:absolute;bottom:100%;left:50%;transform:translateX(calc(var(--p, .5) * -100%));z-index:6;padding:4px 8px;border-radius:6px;background:var(--ink);color:var(--surface);font-size:12px;font-weight:500;white-space:nowrap;pointer-events:none;opacity:0;visibility:hidden}
 .mk:hover::after,.mk:focus::after{opacity:1;visibility:visible}
 .axis{display:grid;grid-template-columns:72px minmax(0,1fr)}
 .ends{display:flex;justify-content:space-between;font-size:12px;color:var(--ink-2);padding-top:2px}
@@ -328,6 +328,19 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere}
 .story-page .coverage{margin-top:14px}
 .story-page .facts{margin-top:14px}
 .story-page .facts-line{font-size:15px;color:var(--ink)}
+.story-page .s-summary{margin:14px 0 0;max-width:72ch}
+.story-page .s-summary p:first-child{font-size:17px}
+/* a story's reports: one column per side by default, or every side together earliest first */
+.reports-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:8px 16px}
+.reports-head h2{margin-bottom:0}
+.reports-head .view{margin:0}
+.byside{margin-top:8px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+.byside .groups{margin:0;padding:0 16px 8px}
+.byside .group:first-child{border-top:0}
+.byside .group .rep{padding:9px 0}
+.byside .group .rep-meta{margin-bottom:3px}
+@media (min-width:720px){.byside .groups{padding:0 0 4px}.byside .group{padding:12px 18px 8px;border-top:0}}
+@media (max-width:719px){.reports-head .view{width:100%}.reports-head .view button{flex:1}}
 .ticks{position:relative;height:24px}
 .tick{position:absolute;left:calc(12px + (100% - 24px) * var(--p));transform:translateX(-50%);padding-top:7px;font-size:12px;color:var(--ink-2);white-space:nowrap}
 .tick::before{content:"";position:absolute;top:0;left:50%;height:5px;border-left:1px solid var(--line-2)}

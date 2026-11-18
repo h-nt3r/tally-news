@@ -143,6 +143,20 @@ class AttachTests(Env):
         S._save_cache(self.hist / "summaries.json", {"b": self.entry("B.")}, now)  # this run never loaded "a"
         self.assertEqual(set(self.cache()), {"a", "b"})
 
+    def test_latest_by_sid_picks_the_newest_passing_summary_per_story(self):
+        self.put({
+            "a": self.entry("Old.", sid="s1", ago=7200),
+            "b": self.entry("New.", sid="s1", ago=60),
+            "c": self.entry("Failed check.", sid="s1", ago=10, ok=False),
+            "d": self.entry("Other story.", sid="s2"),
+            "e": self.entry("No id."),
+        })
+        got = S.latest_by_sid(self.hist)
+        self.assertEqual({k: v["text"] for k, v in got.items()}, {"s1": "New.", "s2": "Other story."})
+
+    def test_latest_by_sid_with_no_cache_is_empty(self):
+        self.assertEqual(S.latest_by_sid(self.hist), {})
+
     def test_per_build_zero_never_runs_the_model(self):
         with mock.patch.object(S, "_generate", side_effect=AssertionError("must not run")):
             S.attach([story("s1"), story("s2")], self.settings, self.hist, per_build=0)

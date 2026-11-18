@@ -449,6 +449,7 @@ def merge_related(by_topic, articles, threshold):
 e = html.escape
 LEAN_LABEL = {"left": "Left", "center": "Center", "right": "Right"}
 MAX_ROWS = 3  # headlines shown per side before "Show N more"
+SIDE_ROWS = 5  # the same on a story's own page, where the reader came for the detail
 TITLES = {"us": "United States", "world": "World", "tech": "Technology"}
 TABS_ALL = [("posts", "Clips"), ("us", "US"), ("world", "World"), ("tech", "Tech"), ("watch", "Videos")]
 TABS = TABS_ALL  # rebuilt in main() from settings
@@ -652,6 +653,14 @@ def render_blindspots(stories, hours_back):
             f'<p class="none-left" hidden>Everything here is hidden by your settings.</p></section>')
 
 
+def summary_html(sm, base=""):
+    """The machine-written 'what happened', always labelled as machine-written. Empty when a story has none."""
+    if not sm:
+        return ""
+    return (f'<div class="s-summary"><p>{e(sm["text"])}</p><p class="s-by">Machine-written from the outlets’ own excerpts, '
+            f'so it can be wrong. The headlines below are the outlets’ own. <a href="{base}methods.html#summaries">How this works</a></p></div>')
+
+
 def render_story(s):
     by_lean = {l: [m for m in s["members"] if m["lean"] == l] for l in LEANS}
     counts = {l: len(v) for l, v in by_lean.items()}
@@ -676,9 +685,7 @@ def render_story(s):
         flag = f'<span class="badge gap">Not covered by: {" and ".join(s["missing"])}</span>'
     sid = s.get("sid", "")
     sm = s.get("summary")
-    summary = (f'<div class="s-summary"><p>{e(sm["text"])}</p><p class="s-by">Machine-written from the outlets’ own excerpts, '
-               f'so it can be wrong. The headlines below are the outlets’ own. <a href="methods.html#summaries">How this works</a></p></div>'
-               if sm else "")
+    summary = summary_html(sm)
     bk = s.get("breaking")
     bflag = (f'<span class="s-flag"><span class="badge brk">Breaking</span><span class="s-ago"><time datetime="{bk["first"].astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}" '
             f'data-ago>{e(clock(bk["first"]))}</time></span></span>') if bk else ""
@@ -1280,7 +1287,7 @@ def iso(dt):
     return dt.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M")
 
 
-def story_page(rec, asof, section_sides):
+def story_page(rec, asof, section_sides, summary=None):
     """A story's own page: permalink, multi-day timeline, every report, headline edits, and a way to cite it."""
     members = story_members(rec)
     f = analytics.story_facts(members)
@@ -1295,11 +1302,20 @@ def story_page(rec, asof, section_sides):
     bar = gap.get("left", "") + bar + gap.get("right", "")
     legend = "".join(f'<span class="k lean-{l}" data-lean="{l}"><i></i>{LEAN_LABEL[l]} <b>{counts[l]}</b></span>' for l in LEANS)
     tracked = fmt_dur((last["when"] - first["when"]).total_seconds())
-    reps = "".join(
-        f'<li class="rep" data-lean="{m["lean"]}" data-source="a:{e(m["source"])}">'
-        f'<div class="rep-meta">{tm(m["when"])}<span class="utc">({utc_stamp(m["when"])})</span>{pill(m["lean"])}<span>{e(m["source"])}</span>{type_badge(m)}'
-        f'{"<span class=badge-edited>Headline changed</span>" if len(m["versions"]) > 1 else ""}</div>'
-        f'<a class="hl" href="{e(m["link"])}" target="_blank" rel="noopener">{e(m["title"])}</a></li>' for m in f["ordered"])
+    def rep_row(m, with_pill):
+        return (f'<li class="rep" data-lean="{m["lean"]}" data-source="a:{e(m["source"])}">'
+                f'<div class="rep-meta">{tm(m["when"])}<span class="utc">({utc_stamp(m["when"])})</span>{pill(m["lean"]) if with_pill else ""}'
+                f'<span>{e(m["source"])}</span>{type_badge(m)}'
+                f'{"<span class=badge-edited>Headline changed</span>" if len(m["versions"]) > 1 else ""}</div>'
+                f'<a class="hl" href="{e(m["link"])}" target="_blank" rel="noopener">{e(m["title"])}</a></li>')
+    reps = "".join(rep_row(m, True) for m in f["ordered"])  # earliest first, every side together
+    side_groups = ""  # the same reports, one column per side; a side that did not cover it says so
+    for l in LEANS:
+        rows = [rep_row(m, False) for m in f["ordered"] if m["lean"] == l]
+        head, tail = rows[:SIDE_ROWS], rows[SIDE_ROWS:]
+        more = (f'<details class="more"><summary>Show {len(tail)} more</summary><ul>{"".join(tail)}</ul></details>' if tail else "")
+        side_groups += (f'<section class="group lean-{l}" data-lean="{l}"><h4><i></i>{LEAN_LABEL[l]}<span class="n">{counts[l]}</span></h4>'
+                        f'<ul>{"".join(head)}</ul>{more}<p class="none"{" hidden" if rows else ""}>No coverage from this side.</p></section>')
     if not CLIPS_ON:
         clips = ""
     elif rec.get("posts"):
@@ -1341,15 +1357,18 @@ def story_page(rec, asof, section_sides):
 <h1>{e(label)}</h1>{label_note(kind, src) or '<p class="lead-src">Label: the words most of these outlets&rsquo; headlines share. <a href="../methods.html#labels">How labels are made</a></p>'}
 <p class="switch-note" id="switchNote" hidden>Some outlets or sides are switched off, so the counts and timing facts on this page follow what you have left on. <a href="../settings.html">Change in Settings</a></p>
 <p class="meta"><span><b class="n-total">{outlets}</b> <span class="w">outlets</span></span><span>{len(members)} reports over {tracked}</span></p>
+{summary_html(summary, "../")}
 <div class="coverage"><div class="bar" role="img" aria-label="Outlets covering this story: left {counts['left']}, center {counts['center']}, right {counts['right']}">{bar}</div>
 <p class="legend">{legend}</p></div>
 <div class="facts"><p class="facts-line">{facts_sentence(f, missing, utc=True)}</p>
 <h2>Coverage timeline</h2>
 {lanes_html(f['ordered'], ticks=True)}
 </div>
-<h2>Every report</h2>
+<div class="reports-head"><h2>Every report</h2>
+<div class="view" id="order" role="group" aria-label="Order the reports" hidden><button type="button" data-order="side" aria-pressed="true">By side</button><button type="button" data-order="time" aria-pressed="false">Earliest first</button></div></div>
 <p class="muted-note">Times are in your device&rsquo;s time zone (<span class="tz">your local time</span>), with UTC beside each.</p>
-<ul class="reps">{reps}</ul>
+<div class="byside" id="repsSide"><div class="groups">{side_groups}</div></div>
+<ul class="reps" id="repsTime" hidden>{reps}</ul>
 {clips}
 {edits}
 <h2>Cite this</h2>
@@ -1727,12 +1746,13 @@ def main():
         ids = {st["sid"] for stories_, _ in archive_topics.values() for st in stories_ if st.get("sid")}
         ids |= set(archive.story_ids_since(conn, built - 30 * 86400))  # unchanged pages are left alone by write_if_changed
         written = 0
+        story_summaries = summaries.latest_by_sid(HIST) if s.get("summaries", False) else {}
         for sid in ids:
             rec = archive.story_record(conn, sid)
             if not rec or not rec["reports"]:
                 continue
             asof = datetime.fromtimestamp(rec["changed_at"], timezone.utc)
-            body, f, missing = story_page(rec, asof, sides)
+            body, f, missing = story_page(rec, asof, sides, story_summaries.get(sid))
             written += write_if_changed(story_dir / f"{sid}.html",
                                         page(f"{analytics.story_label(story_members(rec))[0]} · {SITE_NAME}", "story", body, rec["changed_at"], base="../"))
             written += write_if_changed(story_dir / f"{sid}.json",

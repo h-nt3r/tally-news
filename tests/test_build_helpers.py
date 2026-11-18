@@ -150,3 +150,14 @@ class LatestDataTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SummaryHtmlTests(unittest.TestCase):
+    def test_no_summary_means_no_block(self):
+        self.assertEqual(build.summary_html(None), "")
+
+    def test_summary_is_escaped_and_always_labelled_machine_written(self):
+        h = build.summary_html({"text": "A <b>won</b> & B lost.", "model": "m"}, "../")
+        self.assertIn("A &lt;b&gt;won&lt;/b&gt; &amp; B lost.", h)
+        self.assertIn("Machine-written", h)
+        self.assertIn('href="../methods.html#summaries"', h)

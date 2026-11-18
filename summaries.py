@@ -136,6 +136,16 @@ def _save_cache(path, mine, now):
         pass
 
 
+def latest_by_sid(hist_dir):
+    """{story id: {"text", "model"}} for the newest summary of each story that passed the check, for pages (a story's own page) that
+    are not built from the live story list. Never raises."""
+    best = {}
+    for v in _load(Path(hist_dir) / "summaries.json").values():
+        if v.get("ok") and v.get("sid") and v.get("text") and v.get("at", 0) >= best.get(v["sid"], {"at": -1})["at"]:
+            best[v["sid"]] = v
+    return {sid: {"text": v["text"], "model": v.get("model", "")} for sid, v in best.items()}
+
+
 def _backed_off(fail, now):
     """True while a story that just timed out or crashed is resting, so one hard story cannot use every build's slot."""
     return bool(fail) and now - fail["at"] < min(RETRY_BASE_MIN * 60 * 2 ** (fail["n"] - 1), 6 * 3600)

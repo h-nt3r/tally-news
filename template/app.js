@@ -237,6 +237,22 @@
     var root = document.querySelector(".story-page");
     if (!root) return;
     all(root, ".clip").forEach(function (p) { p.hidden = !shown(p); });
+    var sideBox = root.querySelector(".byside .groups"), cols = 0;
+    all(root, ".byside .group").forEach(function (g) {  // the side columns follow the switches, like the home page rows
+      var n = 0, extra = 0, outlets = {};  // the count is outlets, like the bar and legend; "Show N more" counts reports
+      all(g, "li.rep").forEach(function (li) {
+        var ok = shown(li);
+        li.hidden = !ok;
+        if (ok) { n++; outlets[li.dataset.source] = 1; if (li.closest("details")) extra++; }
+      });
+      var det = g.querySelector("details");
+      if (det) { det.hidden = extra === 0; det.querySelector("summary").textContent = "Show " + extra + " more"; }
+      g.querySelector(".n").textContent = Object.keys(outlets).length;
+      g.querySelector(".none").hidden = n > 0;
+      g.hidden = !on(g.dataset.lean);
+      if (!g.hidden) cols++;
+    });
+    if (sideBox) sideBox.style.setProperty("--cols", Math.max(cols, 1));
     refreshFacts(root);
     var seen = {left: {}, center: {}, right: {}}, total = {};
     all(root, ".rep").forEach(function (r) { if (!r.hidden) { seen[r.dataset.lean][r.dataset.source] = 1; total[r.dataset.source] = 1; } });
@@ -374,6 +390,34 @@
       all(panel, ".c-rows li").forEach(function (li) { li.hidden = !!topic && li.getAttribute("data-topic") !== topic; });
     });
   });
+
+  /* story page: the reports by side (the default) or earliest first. The choice is in the address (?order=time) and remembered here. */
+  var ordBox = document.getElementById("order");
+  if (ordBox) {
+    var ORD = "tally.storyOrder", order = "side", asked = null;
+    try { order = localStorage.getItem(ORD) === "time" ? "time" : "side"; } catch (err) {}
+    try { asked = new URLSearchParams(location.search).get("order"); } catch (err) {}
+    if (asked === "time" || asked === "side") order = asked;
+    var paintOrder = function () {
+      document.getElementById("repsSide").hidden = order !== "side";
+      document.getElementById("repsTime").hidden = order !== "time";
+      all(ordBox, "button").forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.order === order)); });
+    };
+    ordBox.hidden = false;  // without the script both lists would be useless to toggle, so the control only appears with it
+    paintOrder();
+    ordBox.addEventListener("click", function (ev) {
+      var b = ev.target.closest("button");
+      if (!b) return;
+      order = b.dataset.order;
+      paintOrder();
+      try { localStorage.setItem(ORD, order); } catch (err) {}
+      try {
+        var u = new URL(location.href);
+        if (order === "time") u.searchParams.set("order", "time"); else u.searchParams.delete("order");
+        history.replaceState(history.state, "", u);
+      } catch (err) {}
+    });
+  }
 
   /* story rows: one open at a time; the open row shows who covered it, and each headline inside opens the article */
   function openStory(st, on, scroll) {
