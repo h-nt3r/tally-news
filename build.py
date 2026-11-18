@@ -1569,15 +1569,18 @@ def main():
     if blind_stories:
         print(f"  blindspots: {len(blind_stories)} ({', '.join(st['label'][:30] + ' [' + st['blindspot']['side'] + ']' for st in blind_stories)})")
     ALL_SUMS = "--all-summaries" in sys.argv
-    # first pass uses only summaries already written, so the page can go out at once; new ones are written after publishing
-    summaries.attach(all_stories, s, HIST, per_build=10**6 if ALL_SUMS else 0, budget_s=10**6 if ALL_SUMS else 0)
-    tick("cached summaries attached")
     built = int(time.time())
     try:  # the archive is additive: if it fails, the site still publishes
         done = archive.record_build(HIST / "archive.sqlite", built, articles, archive_topics, s.get("archive_days", 365))
         print(f"  archive: {done['new_articles']} new headlines, {done['edits']} headline edits, {done['new_stories']} new stories")
     except Exception as ex:
         print(f"  archive skipped: {ex}", file=sys.stderr)
+    if "--summaries-only" in sys.argv:
+        # the summary job (./schedule.sh summaries-install): the stories are grouped and numbered, so write the summaries that are
+        # missing and stop. No pages are written and nothing is published; the next ordinary build shows what this run saved.
+        summaries.attach(all_stories, s, HIST)
+        tick("summaries written")
+        return
 
     followed = cfg.get("social", []) if CLIPS_ON else []
     posts, post_matches = [], []
@@ -1607,6 +1610,10 @@ def main():
             print(f"  clips and posts not archived: {ex}", file=sys.stderr)
 
     tick("archive and clips")
+    # first pass uses only summaries already written, so the page can go out at once; new ones are written after publishing.
+    # It runs after the archive has numbered the stories, so a story keeps its previous summary under its own id while a new one is written.
+    summaries.attach(all_stories, s, HIST, per_build=10**6 if ALL_SUMS else 0, budget_s=10**6 if ALL_SUMS else 0)
+    tick("cached summaries attached")
     matches = match_trends([st for stories, _ in built_topics.values() for st in stories],
                            fetch_bluesky_trends(), s.get("trend_match", 0.3))
     print(f"  Bluesky trends matched to {len(matches)} stories")
@@ -1770,7 +1777,7 @@ def main():
     write_atomic(site / "build.json", json.dumps({"built": built, "articles": len(articles), "stories": stories}))
     tick("all pages written")
     print("Wrote site/ (index, sources, settings, fork)")
-    if not ALL_SUMS and s.get("summaries", False):
+    if not ALL_SUMS and s.get("summaries", False) and s.get("summaries_in_build", True):
         # the page is already live; now write the summaries it is missing (breaking first) and refresh the front page if any arrive
         if summaries.attach(all_stories, s, HIST):
             built2 = int(time.time())

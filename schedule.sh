@@ -10,6 +10,8 @@
 #   ./schedule.sh build-now        rebuild right now, without waiting for the next 5 minutes
 #   ./schedule.sh reschedule       rewrite and restart only the build job (after changing EVERY below); leaves the server alone
 #   ./schedule.sh uninstall        stop both and remove them
+#   ./schedule.sh summaries-install    write the machine-written summaries in their own job (keeps page builds short; see summaries_in_build)
+#   ./schedule.sh summaries-uninstall  remove that job
 #
 # The workbench (your own copy with the Manage sources page; see ./workbench.sh) has its own job:
 #   ./schedule.sh workbench-install          keep the workbench running and rebuilding every 20 minutes
@@ -28,6 +30,8 @@ DOMAIN="gui/$(id -u)"
 PORT=8765
 EVERY=300       # seconds between rebuilds of the main site (a build takes a minute or two; launchd never starts a second one while one runs)
 WB_EVERY=1200   # seconds between workbench rebuilds
+SUMMARIZE=local.opennews.summaries
+SUM_EVERY=600   # seconds between summary runs (each one writes the few summaries that are missing; see summary_per_build)
 
 need_mac() { [ "$(uname)" = Darwin ] || { echo "This script is for macOS. On Linux, use cron (see the Fork it page)."; exit 1; }; }
 
@@ -45,6 +49,24 @@ write_build_plist() {
   <key>StartInterval</key><integer>$EVERY</integer>
   <key>RunAtLoad</key><true/>
   <key>ProcessType</key><string>Background</string>
+</dict></plist>
+EOF
+}
+
+write_summaries_plist() {  # its own job, so the slow model never holds up a page build. Not "Background": macOS then gives the model about a fifth of a core, and it times out
+  cat > "$AGENTS/$SUMMARIZE.plist" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>$SUMMARIZE</string>
+  <key>ProgramArguments</key><array>
+    <string>/bin/sh</string><string>-c</string>
+    <string>cd "$ROOT" &amp;&amp; { [ "\$(wc -c &lt; logs/summaries.log 2&gt;/dev/null || echo 0)" -gt 1000000 ] &amp;&amp; : &gt; logs/summaries.log; exec .venv/bin/python build.py --summaries-only &gt;&gt; logs/summaries.log 2&gt;&amp;1; }</string>
+  </array>
+  <key>WorkingDirectory</key><string>$ROOT</string>
+  <key>StartInterval</key><integer>$SUM_EVERY</integer>
+  <key>RunAtLoad</key><true/>
+  <key>ProcessType</key><string>Standard</string>
 </dict></plist>
 EOF
 }
@@ -161,6 +183,22 @@ case "$1" in
       rm -f "${AGENTS:?}/$label.plist"
     done
     echo "Removed both background jobs. The site files stay; use ./run.sh to build and serve by hand."
+    ;;
+  summaries-install)
+    need_mac
+    [ -x .venv/bin/python ] || { echo "Run the first-time setup in README.md first (python3 -m venv .venv ...)."; exit 1; }
+    mkdir -p "$AGENTS" logs
+    write_summaries_plist
+    load $SUMMARIZE
+    echo "Installed. A summary run starts now and repeats every $((SUM_EVERY / 60)) minutes; it only writes summaries, never pages."
+    echo "Set summaries_in_build = false in config/sources.toml so the page build stops writing them too."
+    echo "Progress: tail logs/summaries.log"
+    ;;
+  summaries-uninstall)
+    need_mac
+    launchctl bootout "$DOMAIN/$SUMMARIZE" 2>/dev/null
+    rm -f "${AGENTS:?}/$SUMMARIZE.plist"
+    echo "Removed the summary job. Set summaries_in_build = true in config/sources.toml to have the page build write summaries again."
     ;;
   workbench-install)
     need_mac
