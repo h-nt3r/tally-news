@@ -11,14 +11,19 @@
 <section class="ask-out" id="askOut" hidden aria-label="Answer">
 <p class="ask-text" id="askText"></p>
 <p class="ask-by" id="askBy"></p>
+<div class="ask-more" id="askMore" hidden>
+<button class="btn" id="askWrite" type="button">Compare how each side worded it</button>
+<p class="ask-text" id="askWriteText"></p>
+<p class="ask-by" id="askWriteBy">The model reads the top story's headlines. About a minute on an older computer.</p>
+</div>
 <div class="stories ask-stories" id="askSources"></div>
 </section>
 <details class="ask-how">
 <summary>How this works</summary>
 <ol>
 <li><b>Counting.</b> Questions like "which stories did the left miss?" are answered by code counting the data, instantly. No model is involved.</li>
-<li><b>Matching.</b> Other questions are matched to today's stories by shared words. If nothing matches, you get "That is not in today's coverage."</li>
-<li><b>Writing.</b> {model_name} sees only the best one or two stories' headlines, grouped by side without outlet names, and writes a few sentences. It can be wrong, so every answer lists the stories it used.</li>
+<li><b>Matching.</b> Other questions are matched to today's stories by shared words. If nothing matches, you get "That is not in today's coverage." If a matched story already has its summary, you get that at once.</li>
+<li><b>Writing.</b> Only when you ask, or when a story has no summary yet, {model_name} reads the best story's headlines, grouped by side without outlet names, and writes a few sentences. It can be wrong, so every answer lists the stories it used.</li>
 </ol>
 <p>It answers one question at a time and remembers nothing. Your questions are not logged or sent anywhere. Rules and instructions: <code>config/chat_prompt.txt</code>.</p>
 </details>

@@ -307,7 +307,8 @@ class Handler(BaseHTTPRequestHandler):
             n = int(self.headers.get("Content-Length") or 0)
             if n > MAX_BODY:
                 return self._json(413, {"error": "That question is too long."})
-            q = json.loads(self.rfile.read(n) or b"{}").get("question", "")
+            body = json.loads(self.rfile.read(n) or b"{}")
+            q, write = body.get("question", ""), body.get("write") is True
             if not isinstance(q, str) or not q.strip():
                 raise ValueError
         except (ValueError, AttributeError):
@@ -315,7 +316,7 @@ class Handler(BaseHTTPRequestHandler):
         if not APP.busy.acquire(blocking=False):
             return self._json(429, {"error": "Another question is being answered. Try again in a minute."})
         try:
-            self._answer(q.strip()[:chat.MAX_QUESTION])
+            self._answer(q.strip()[:chat.MAX_QUESTION], write)
         except (BrokenPipeError, ConnectionResetError):
             pass  # the reader left; leaving the loop below already told the model to stop
         except Exception as ex:  # never show a stack trace to the page
@@ -347,13 +348,21 @@ class Handler(BaseHTTPRequestHandler):
             except OSError:
                 pass
 
-    def _answer(self, question):
+    def _answer(self, question, write=False):
         self._head(200, "application/x-ndjson; charset=utf-8")
-        prep = chat.prepare(question, APP.stories(), APP.system)
-        self._event({"type": "sources", "mode": prep["mode"], "stories": prep["sources"], "model": APP.model.name, "note": prep.get("note")})
-        if prep["prompt"] is None:  # a lookup counted by code, or nothing matched: the model is not needed
-            self._event({"type": "text", "text": prep["text"] or chat.NOT_COVERED})
-            return self._event({"type": "done"})
+        if write:  # the reader pressed "compare how each side worded it": the rows are already on the page, so only the model's text is sent
+            prompt = chat.write_prompt(question, APP.stories(), APP.system)
+            if prompt is None:
+                self._event({"type": "error", "text": "That story is no longer in the latest build. Ask again."})
+                return
+        else:
+            prep = chat.prepare(question, APP.stories(), APP.system)
+            self._event({"type": "sources", "mode": prep["mode"], "stories": prep["sources"], "model": prep.get("model") or APP.model.name,
+                         "note": prep.get("note"), "can_write": bool(prep.get("can_write"))})
+            if prep["prompt"] is None:  # a lookup counted by code, a stored summary, or nothing matched: the model is not needed
+                self._event({"type": "text", "text": prep["text"] or chat.NOT_COVERED})
+                return self._event({"type": "done"})
+            prompt = prep["prompt"]
         if not APP.model.installed():
             return self._event({"type": "error", "text": "The model is not installed yet. The README's \"summaries written on your own computer\" "
                                 "section shows how; the Ask page needs the same two files."})
@@ -367,7 +376,7 @@ class Handler(BaseHTTPRequestHandler):
             if held.get("gone"):
                 return
             self._event({"type": "status", "text": "Reading the stories"})
-            for piece in APP.model.stream(prep["prompt"], lambda c: held.__setitem__("conn", c)):
+            for piece in APP.model.stream(prompt, lambda c: held.__setitem__("conn", c)):
                 self._event({"type": "text", "text": piece})
             if not held.get("gone"):
                 self._event({"type": "done"})

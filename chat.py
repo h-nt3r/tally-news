@@ -8,6 +8,8 @@ How an answer is made, in order, with no hidden steps:
      is not called at all and the answer is "That is not in today's coverage."
   2. COVERAGE: who covered each picked story, by side, with their own headlines and links, is copied from the data
      by plain code. A language model never writes that part, because a small model gets sides wrong.
+  2b. SUMMARY: when a picked story already has its stored "what happened" (written earlier by the same model, see summaries.py), that
+     is the answer, shown at once. The model runs only if the reader asks it to compare how the sides worded the story.
   3. WRITE: the model is shown only the picked stories' headlines (grouped by side, without outlet names) and the
      instructions in config/chat_prompt.txt, and writes a few sentences. Nothing else goes in, and nothing is sent anywhere.
 This file has no network or model code; chat_server.py runs the model.
@@ -25,6 +27,7 @@ PER_SIDE = 3         # headlines per side given to the model
 MAX_QUESTION = 300
 
 NOT_COVERED = "That is not in today's coverage."
+COMPARE = "\n(Compare how the left, center and right headlines word this story. Say which words each group uses.)"
 
 # Words that describe the question rather than the story: "how did the left cover it" says nothing about which story.
 FILLER = set("""a about all an and any are as at be been being but by can could did do does for from give had has have how i if in
@@ -187,9 +190,15 @@ def build_prompt(question, picked, system, per_side=PER_SIDE):
             else:
                 lines.append(f"{side.upper()} outlets: no coverage")
         blocks.append("\n".join(lines))
-    q = question.strip()[:MAX_QUESTION].replace("<|", "< |")  # the question cannot smuggle in chat-format markers
+    q = question.strip()[:MAX_QUESTION + len(COMPARE)].replace("<|", "< |")  # the question cannot smuggle in chat-format markers
     return (f"<|im_start|>system\n{system}\n\nSTORIES:\n" + "\n\n".join(blocks) + f"<|im_end|>\n<|im_start|>user\n{q}<|im_end|>\n"
             "<|im_start|>assistant\n<think>\n\n</think>\n\n")
+
+
+def write_prompt(question, stories, system):
+    """For the "compare how each side worded it" button: only the best-matching story, so the model reads less and answers sooner."""
+    picked, mode = retrieve(question, stories)
+    return build_prompt(question.strip()[:MAX_QUESTION] + COMPARE, picked[:1], system) if mode == "match" and picked else None
 
 
 def prepare(question, stories, system):
@@ -199,6 +208,11 @@ def prepare(question, stories, system):
         text, picked, note = found
         return {"mode": "list", "sources": [coverage(st, n) for n, st in enumerate(picked, 1)], "prompt": None, "text": text, "note": note}
     picked, mode = retrieve(question, stories)
+    stored = [(n, st["summary"]) for n, st in enumerate(picked, 1) if (st.get("summary") or {}).get("text")]
+    if mode == "match" and stored:  # the answer already exists, written earlier: show it at once; the model only compares wording on request
+        text = "\n\n".join(f"{sm['text'].strip()} [{n}]" for n, sm in stored)
+        return {"mode": "summary", "sources": [coverage(st, n) for n, st in enumerate(picked, 1)], "prompt": None, "text": text, "note": None,
+                "can_write": True, "model": stored[0][1].get("model", "")}
     if mode == "overview":  # nothing in the question to match: show the top stories rather than ask the model to guess
         picked = picked[:MAX_STORIES]
     return {"mode": mode, "sources": [coverage(st, n) for n, st in enumerate(picked, 1)],

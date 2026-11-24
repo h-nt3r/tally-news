@@ -670,6 +670,10 @@ kbd{display:inline-block;min-width:22px;padding:1px 6px;border:1px solid var(--l
 .ask-text .cite:hover{text-decoration:underline}
 .ask-by{margin:6px 0 16px;max-width:62ch;font-size:13px;line-height:1.5;color:var(--ink-2)}
 .ask-by:empty{display:none}
+.ask-more{margin:0 0 16px}
+.ask-more .btn{min-height:44px}
+.ask-more .ask-text{margin-top:12px}
+.ask-more .ask-by{margin:6px 0 0}
 .ask-n{margin-right:6px;color:var(--ink-2);font-weight:600}
 .ask-stories:empty{display:none}
 .ask-off{margin:12px 0;padding:4px 16px 12px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius)}

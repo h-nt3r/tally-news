@@ -40,7 +40,8 @@ How an answer is made, with no hidden steps (the code is `chat.py`, and the mode
 
 1. **Retrieve.** Your question is matched to today's stories by shared words. If nothing matches well, the model is never called and the answer is "That is not in today's coverage."
 2. **Coverage, by plain code.** Which outlets covered each story, on which side, with their own headlines and links, is copied from the data. The model never writes it, because a small model gets sides wrong.
-3. **Write.** The model sees only the best one or two stories' headlines (grouped by side, outlet names left out) and writes up to four sentences, citing them as [1], [2]. It is labelled machine-written and unchecked.
+3. **Stored summary first.** If a matched story already has its two-sentence summary (written earlier by the summaries job), that is the answer, shown at once with no model running. A "Compare how each side worded it" button then asks the model about the top story only, when you want that.
+4. **Write.** When a story has no summary yet, or you press that button, the model sees only the best one or two stories' headlines (grouped by side, outlet names left out) and writes up to four sentences, citing them as [1], [2]. It is labelled machine-written and unchecked.
 
 What to expect: on an older dual-core laptop an answer takes about 30 to 60 seconds, with the model loading on the first question after a quiet spell. It is single-turn: it does not remember earlier questions. Try `chat_model = "tools/Qwen3-1.7B-Q4_K_M.gguf"` in `config/sources.toml` for roughly 2.5 times faster answers that get sides wrong more often. It only answers about stories on the News page (covered by several outlets), not single-outlet headlines. Unless you start it with `--lan` the helper listens on this computer only, and it only answers pages from this site. It does not work on a hosted copy of the site, which cannot reach your model; the page says so.
 
@@ -128,7 +129,7 @@ Notes on what you see:
 - **First reported and the coverage timeline** (under each story): which outlet in the list published first, when all three sides had covered it, and a three-lane timeline (one dot per outlet at its publish time) with a table version. They follow your switches, so an outlet you've hidden is never named first.
 - **"In this update"** (above the written stories): how many stories, articles and outlets, how many stories all three sides covered, and how many had no left or right coverage.
 - **Per-outlet counts** on the Sources page: how many of the page's stories an outlet appears in and how often it was first.
-- **The data behind the page** is downloadable at `data/latest.json` (rebuilt every update).
+- **The data behind the page** is downloadable at `data/latest.json` (rebuilt every update). Each story carries its summary (`summary.text`, or `null` when it has none yet).
 - **New** tag and the "N new since 4:49 PM" line: stories that gained coverage since you last opened the page on this
   device. It only labels; it never reorders or hides anything.
 - **Type** tag (Sources and story pages): how an outlet is funded or owned, such as wire service, public broadcaster, state-funded, nonprofit or commercial. A fact about the outlet, not a rating. Outlets without a tag have not been classified yet.

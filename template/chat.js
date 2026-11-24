@@ -7,7 +7,8 @@
   if (!root) return;
   var $ = function (id) { return document.getElementById(id); };
   var form = $("askForm"), input = $("askQ"), go = $("askGo"), stop = $("askStop"), status = $("askStatus"),
-      off = $("askOff"), out = $("askOut"), text = $("askText"), by = $("askBy"), srcBox = $("askSources"), ex = $("askEx");
+      off = $("askOff"), out = $("askOut"), text = $("askText"), by = $("askBy"), srcBox = $("askSources"), ex = $("askEx"),
+      more = $("askMore"), writeBtn = $("askWrite"), writeText = $("askWriteText"), writeBy = $("askWriteBy");
   var base = document.body.getAttribute("data-base") || "";
   /* "Your own computer": this Mac by name, its address on your Wi-Fi (how a phone reaches it), or its .local name. A hosted copy is none of these. */
   var h = location.hostname;
@@ -16,7 +17,8 @@
   var touch = window.matchMedia && matchMedia("(pointer: coarse)").matches;  /* a phone or tablet: do not pop the keyboard up on its own */
   var api = location.protocol + "//" + location.hostname + ":" + root.getAttribute("data-port");
   var SIDE = {left: "Left", center: "Center", right: "Right"}, LEANS = ["left", "center", "right"];
-  var ctl = null, timer = null, t0 = 0, label = "", answer = "", n = 0, mode = "", model = "", note = "";
+  var ctl = null, timer = null, t0 = 0, label = "", answer = "", writeAns = "", n = 0, mode = "", model = "", note = "", lastQ = "";
+  var HINT = writeBy.textContent;
 
   function el(tag, cls, txt) {
     var x = document.createElement(tag);
@@ -53,31 +55,34 @@
   function caption(done) {
     var t;
     if (mode === "list") t = "Counted from today's stories by code, not written by a model." + (note ? " " + note : "");
+    else if (mode === "summary") t = "Summary written earlier by " + modelName() + " from the outlets' own excerpts, so it can be wrong. The headlines below are the outlets' own.";
     else if (mode === "none") t = "Try a person, place or event in the news, or ask which stories a side missed.";
     else t = "Written by " + modelName() + " from the stories below, and not checked. It can be wrong, so look at the headlines." + (done ? " Took " + Math.round((Date.now() - t0) / 1000) + " s." : "");
     by.textContent = t;
   }
 
   /* the answer, with [1] turned into a link that opens the row it points at. Only numbers of rows shown are linked. */
-  function paint() {
-    text.textContent = "";
-    answer.split(/(\[\d\])/).forEach(function (part) {
+  function paint(target, str) {
+    target.textContent = "";
+    str.split(/(\[\d\])/).forEach(function (part) {
       var m = /^\[(\d)\]$/.exec(part);
       if (m && +m[1] >= 1 && +m[1] <= n) {
         var a = el("a", "cite", part);
         a.href = "#s-ask" + m[1];
-        text.appendChild(a);
-      } else if (part) text.appendChild(document.createTextNode(part));
+        target.appendChild(a);
+      } else if (part) target.appendChild(document.createTextNode(part));
     });
   }
-  text.addEventListener("click", function (ev) {
+  function citeClick(ev) {
     var a = ev.target.closest && ev.target.closest("a.cite");
     if (!a) return;
     ev.preventDefault();
     var head = document.querySelector(a.getAttribute("href") + " .s-head");
     if (head && head.getAttribute("aria-expanded") !== "true") head.click();
     if (head) head.scrollIntoView({block: "nearest"});
-  });
+  }
+  text.addEventListener("click", citeClick);
+  writeText.addEventListener("click", citeClick);
 
   /* one story row, built the way the News page builds it (build.py render_story), so it looks and behaves the same */
   function row(s) {
@@ -134,21 +139,34 @@
     if (ev.type === "sources") {
       mode = ev.mode; model = ev.model || ""; note = ev.note || ""; n = ev.stories.length;
       srcBox.textContent = ""; ev.stories.forEach(function (s) { srcBox.appendChild(row(s)); });
-      out.hidden = false; caption(false);
-      label = mode === "list" || mode === "none" ? "" : "Reading " + n + (n === 1 ? " story" : " stories");
+      out.hidden = false; caption(false); more.hidden = !ev.can_write;
+      label = mode === "list" || mode === "none" || mode === "summary" ? "" : "Reading " + n + (n === 1 ? " story" : " stories");
     } else if (ev.type === "status") { label = ev.text; tick(); }
-    else if (ev.type === "text") { if (mode !== "list" && mode !== "none") label = "Writing"; answer += ev.text; paint(); }
+    else if (ev.type === "text") { if (mode === "match" || mode === "overview") label = "Writing"; answer += ev.text; paint(text, answer); }
+    else if (ev.type === "error") { bad(ev.text); }
+  }
+  function handleWrite(ev) {
+    if (ev.type === "status") { label = ev.text; tick(); }
+    else if (ev.type === "text") { label = "Writing"; writeAns += ev.text; paint(writeText, writeAns); }
     else if (ev.type === "error") { bad(ev.text); }
   }
 
-  function ask(q) {
-    q = q.trim();
-    if (!q || ctl) return;
-    answer = ""; n = 0; text.textContent = ""; by.textContent = ""; srcBox.textContent = ""; out.hidden = true; ex.hidden = true;
-    label = "Finding the stories"; ctl = new AbortController(); busy(true); tick();
+  /* One request, two kinds: a question (write false), or "compare how each side worded it" for the last question (write true).
+     The second adds only the model's text under the answer; the rows already on the page stay as they are. */
+  function run(q, write) {
+    if (ctl) return;
+    if (write) { writeAns = ""; writeText.textContent = ""; writeBtn.hidden = true; writeBy.textContent = ""; label = "Reading the story"; }
+    else {
+      q = q.trim();
+      if (!q) return;
+      lastQ = q; answer = ""; writeAns = ""; n = 0; text.textContent = ""; by.textContent = ""; srcBox.textContent = ""; out.hidden = true; ex.hidden = true;
+      more.hidden = true; writeText.textContent = ""; writeBy.textContent = HINT; writeBtn.hidden = false;
+      label = "Finding the stories";
+    }
+    ctl = new AbortController(); busy(true); tick();
     if (touch) { input.blur(); status.scrollIntoView({block: "center", behavior: "smooth"}); }  /* close the keyboard so the answer is in view */
     var failed = false;
-    fetch(api + "/api/chat", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({question: q}), signal: ctl.signal})
+    fetch(api + "/api/chat", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({question: lastQ, write: !!write}), signal: ctl.signal})
       .then(function (r) {
         if (!r.ok) return r.json().then(function (j) { failed = true; bad(j.error || "The helper could not answer."); });
         var reader = r.body.getReader(), dec = new TextDecoder(), buf = "";
@@ -157,23 +175,30 @@
             if (x.done) return;
             buf += dec.decode(x.value, {stream: true});
             var lines = buf.split("\n"); buf = lines.pop();
-            lines.forEach(function (l) { if (l.trim()) { try { var ev = JSON.parse(l); if (ev.type === "error") failed = true; handle(ev); } catch (e) {} } });
+            lines.forEach(function (l) { if (l.trim()) { try { var ev = JSON.parse(l); if (ev.type === "error") failed = true; (write ? handleWrite : handle)(ev); } catch (e) {} } });
             return pump();
           });
         }
         return pump();
       })
-      .then(function () { if (!failed) { say(""); caption(true); } })
+      .then(function () {
+        if (failed) return;
+        say("");
+        if (write) writeBy.textContent = "Written by " + modelName() + " from the top story's headlines, and not checked. It can be wrong. Took " + Math.round((Date.now() - t0) / 1000) + " s.";
+        else caption(true);
+      })
       .catch(function (e) {
         if (e && e.name === "AbortError") say("Stopped.");
         else if (touch) { bad("Lost the connection. A phone pauses a page when you switch apps or the screen locks, so stay on this page while it answers. Then ask again."); }
         else { bad("Lost contact with the helper. Is ./chat.sh still running?"); }
       })
-      .then(function () { busy(false); ctl = null; if (!touch) input.focus(); });
+      .then(function () { if (write && !writeAns) { writeBtn.hidden = false; writeBy.textContent = HINT; } busy(false); ctl = null; if (!touch) input.focus(); });
   }
+  function ask(q) { run(q, false); }
 
   form.addEventListener("submit", function (ev) { ev.preventDefault(); ask(input.value); });
   stop.addEventListener("click", function () { if (ctl) ctl.abort(); });
+  writeBtn.addEventListener("click", function () { run(lastQ, true); });
 
   /* a few ways in: a lookup, today's top story by name, and the overview. Shown until the first question. */
   function examples() {

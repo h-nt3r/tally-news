@@ -120,6 +120,51 @@ class Lookups(unittest.TestCase):
         self.assertEqual([c["id"] for c in prep["sources"]], ["s2", "s3", "s5"])
 
 
+class StoredSummaries(unittest.TestCase):
+    """A story that already has its summary is answered at once; the model only runs when asked, or when there is no summary."""
+    def with_summary(self, *ids):
+        out = []
+        for st in STORIES:
+            st = dict(st)
+            if st["id"] in ids:
+                st["summary"] = {"text": f"Summary of {st['id']}.", "model": "Qwen3-4B-Q4_K_M.gguf"}
+            out.append(st)
+        return out
+
+    def test_a_matched_story_with_a_summary_needs_no_model(self):
+        prep = chat.prepare("What happened with the ground stop at O'Hare?", self.with_summary("b2"), "SYS")
+        self.assertEqual((prep["mode"], prep["prompt"], prep["can_write"]), ("summary", None, True))
+        self.assertEqual(prep["text"], "Summary of b2. [1]")
+        self.assertEqual(prep["model"], "Qwen3-4B-Q4_K_M.gguf")
+        self.assertEqual([c["id"] for c in prep["sources"]], ["b2"])
+
+    def test_two_stories_each_with_a_summary_are_cited_by_number(self):
+        two = [dict(lookup_story("p1", "Airport strike", 1, 2, 1), summary={"text": "Workers walked out.", "model": "m"}),
+               dict(lookup_story("p2", "Airport security", 1, 1, 2), summary={"text": "Lines grew long.", "model": "m"})]
+        prep = chat.prepare("What is happening at the airport?", two, "SYS")
+        self.assertEqual((prep["mode"], prep["text"]), ("summary", "Workers walked out. [1]\n\nLines grew long. [2]"))
+
+    def test_without_a_summary_the_model_writes_as_before(self):
+        prep = chat.prepare("What happened with the ground stop at O'Hare?", STORIES, "SYS")
+        self.assertEqual((prep["mode"], prep["text"]), ("match", None))
+        self.assertIn("<|im_start|>assistant", prep["prompt"])
+        self.assertFalse(prep.get("can_write"))
+
+    def test_the_compare_prompt_reads_only_the_top_story(self):
+        p = chat.write_prompt("Tell me about Nvidia", STORIES, "SYS")
+        self.assertEqual(p.count("\n[1] "), 1)
+        self.assertNotIn("[2] ", p)
+        self.assertIn("Compare how the left, center and right headlines word this story", p)
+        for name in ("Alpha", "Beta", "Gamma"):
+            self.assertNotIn(name, p)
+
+    def test_no_compare_prompt_when_nothing_matches(self):
+        self.assertIsNone(chat.write_prompt("What is the weather in Paris?", STORIES, "SYS"))
+
+    def test_lookups_never_offer_the_model(self):
+        self.assertFalse(chat.prepare("What stories did the left miss?", LOOKUP, "SYS").get("can_write"))
+
+
 class WhatThePageShows(unittest.TestCase):
     def test_coverage_is_copied_from_the_data(self):
         c = chat.coverage(STORIES[1], 1)
