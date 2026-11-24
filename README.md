@@ -24,6 +24,28 @@ Each story can open with a two-sentence "what happened", written by a small open
 
 Each build writes a few new summaries (`summary_per_build` in `config/sources.toml`) and remembers them, so a full set fills in over a few builds. `.venv/bin/python build.py --all-summaries` does them all at once (about 40 seconds each on an older laptop). The instructions the model gets are in `config/summary_prompt.txt`. With no model installed the page works as before, without summaries.
 
+## Optional: ask questions of today's news (Ask page)
+
+The **Ask** page answers questions like "what happened at O'Hare?" from the stories this site already fetched, with the same small open model, run on your own computer. No Gemini, Claude or any other outside service is involved, and questions are not logged. It uses the same two files as the summaries (llama.cpp, which includes `llama-server`, and the model), so install those first.
+
+```
+./chat.sh                      # leave it running; then open http://localhost:8765/chat.html
+./chat.sh --lan                # same, and a phone on your Wi-Fi can ask too
+./schedule.sh chat-install --lan   # or keep it running in the background (macOS); chat-status, chat-uninstall
+```
+
+**From your phone:** the news site and the helper must both be reachable on your Wi-Fi (`./schedule.sh install --lan`, and `--lan` for the helper as above). Open `http://<your-mac-ip>:8765/chat.html` in the phone's browser. Anyone on the same Wi-Fi can then ask questions, which uses your computer's processor, so don't do this on public Wi-Fi. With `--lan` the helper still refuses anything that is not on a private network, any request addressed by a web name instead of your Mac's address, and any page that is not this site. Keep the page open while it answers: a phone pauses a page when you switch apps or lock the screen.
+
+How an answer is made, with no hidden steps (the code is `chat.py`, and the model's instructions are `config/chat_prompt.txt`):
+
+0. **Count.** A question that is really a lookup is answered by plain code filtering the data: which stories a side missed ("which stories did the left miss?"), stories reported only by one side, stories all three sides covered, the main stories, the newest stories, and who reported a story first (or which side usually does). No model, so it is instant and exact. Every rule is on the Methods page ("The Ask page").
+1. **Retrieve.** Your question is matched to today's stories by shared words. If nothing matches well, the model is never called and the answer is "That is not in today's coverage."
+2. **Coverage, by plain code.** Which outlets covered each story, on which side, with their own headlines and links, is copied from the data. The model never writes it, because a small model gets sides wrong.
+3. **Stored summary first.** If a matched story already has its two-sentence summary (written earlier by the summaries job), that is the answer, shown at once with no model running. A "Compare how each side worded it" button then asks the model about the top story only, when you want that.
+4. **Write.** When a story has no summary yet, or you press that button, the model sees only the best one or two stories' headlines (grouped by side, outlet names left out) and writes up to four sentences, citing them as [1], [2]. It is labelled machine-written and unchecked.
+
+What to expect: lookups and stored summaries are instant. When the model writes (a story with no summary yet, or the compare button), an answer takes about 10 to 60 seconds on an older dual-core laptop, longer when the model has to load after a quiet spell. It is single-turn: it does not remember earlier questions. Try `chat_model = "tools/Qwen3-1.7B-Q4_K_M.gguf"` in `config/sources.toml` for roughly 2.5 times faster answers that get sides wrong more often. It only answers about stories on the News page (covered by several outlets), not single-outlet headlines. Unless you start it with `--lan` the helper listens on this computer only, and it only answers pages from this site. It does not work on a hosted copy of the site, which cannot reach your model; the page says so.
+
 ## A copy for your group
 
 Mutual aid networks, union locals, chapters and neighborhood groups can run their own copy, with their own name and outlets:
@@ -86,6 +108,7 @@ What keeps it safe and honest:
   outlets covered it) and the outlets' own headlines in three groups. "Not covered by: left/right" appears when a story
   has 3 or more outlets and one side has said nothing (only in sections that have outlets on that side).
 - **Latest** (the second tab): every headline from the last few days (`latest_days` in `config/sources.toml`, default 3), newest first, **including the ones only one outlet ran**, which the News page leaves out because it shows only stories that several outlets covered. Search it by word or by an "exact phrase" (the outlet name counts too), filter by topic, and your Settings switches still apply. A search box on the News page jumps straight to it, and a result that belongs to a story links to that story's page. The list is read from `data/headlines.json` and drawn in your browser; nothing is sent anywhere.
+- **Ask** (when `chat = true` in `config/sources.toml`): questions answered from today's stories by the open model on your computer, with who covered each story shown beside the answer (see "Ask page" above).
 - **Sources**: every outlet, its label, how it is funded or owned (wire, public, state, nonprofit or commercial), a link to its homepage and its feed, how many
   items it returned in the last build, and a switch to hide it for you.
 - **Settings**: show or hide left, center and right; turn popularity signals and "new" tags off; export or
@@ -107,7 +130,7 @@ Notes on what you see:
 - **First reported and the coverage timeline** (under each story): which outlet in the list published first, when all three sides had covered it, and a three-lane timeline (one dot per outlet at its publish time) with a table version. They follow your switches, so an outlet you've hidden is never named first.
 - **"In this update"** (above the written stories): how many stories, articles and outlets, how many stories all three sides covered, and how many had no left or right coverage.
 - **Per-outlet counts** on the Sources page: how many of the page's stories an outlet appears in and how often it was first.
-- **The data behind the page** is downloadable at `data/latest.json` (rebuilt every update).
+- **The data behind the page** is downloadable at `data/latest.json` (rebuilt every update). Each story carries its summary (`summary.text`, or `null` when it has none yet).
 - **New** tag and the "N new since 4:49 PM" line: stories that gained coverage since you last opened the page on this
   device. It only labels; it never reorders or hides anything.
 - **Type** tag (Sources and story pages): how an outlet is funded or owned, such as wire service, public broadcaster, state-funded, nonprofit or commercial. A fact about the outlet, not a rating. Outlets without a tag have not been classified yet.

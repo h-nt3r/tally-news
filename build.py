@@ -453,6 +453,7 @@ SIDE_ROWS = 5  # the same on a story's own page, where the reader came for the d
 TITLES = {"us": "United States", "world": "World", "tech": "Technology"}
 TABS_ALL = [("posts", "Clips"), ("us", "US"), ("world", "World"), ("tech", "Tech"), ("watch", "Videos")]
 TABS = TABS_ALL  # rebuilt in main() from settings
+CHAT_ON = False   # the Ask page (chat.py, chat_server.py); off unless settings.chat = true
 CLIPS_ON = False  # clips and posts from social accounts; off unless settings.clips = true
 FEEDS_ON = False  # Atom feeds need absolute addresses, so they are written only when settings.base_url is set
 REPO_URL, LICENSE_NAME = "", ""  # from settings.repo_url and settings.license; empty shows the footer placeholders
@@ -465,12 +466,14 @@ ICONS = {
     "news": '<path d="M5 5h11v14H7a2 2 0 0 1-2-2V5z"/><path d="M16 9h3v8a2 2 0 0 1-2 2"/><path d="M8 9h5M8 12h5M8 15h3"/>',
     "sources": '<path d="M9 7h10M9 12h10M9 17h10"/><path d="M5 7h.01M5 12h.01M5 17h.01"/>',
     "settings": '<path d="M5 8h8M17 8h2M5 16h2M11 16h8"/><circle cx="15" cy="8" r="2"/><circle cx="9" cy="16" r="2"/>',
+    "ask": '<path d="M5 6a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-6l-4 4v-4H7a2 2 0 0 1-2-2V6z"/><path d="M9 8h6M9 11h4"/>',
     "latest": '<path d="M12 7v5l3 2"/><circle cx="12" cy="12" r="8"/>',
     "manage": '<path d="M12 5v14M5 12h14"/><rect x="3" y="3" width="18" height="18" rx="4"/>',
     "fork": '<circle cx="7" cy="6" r="2"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="8" r="2"/><path d="M7 8v8M17 10v1a3 3 0 0 1-3 3h-4a3 3 0 0 0-3 3"/>',
 }
-PAGES = [("index.html", "news", "News"), ("latest.html", "latest", "Latest"), ("sources.html", "sources", "Sources"),
-         ("settings.html", "settings", "Settings")]
+PAGES_BASE = [("index.html", "news", "News"), ("latest.html", "latest", "Latest"), ("sources.html", "sources", "Sources"),
+              ("settings.html", "settings", "Settings")]
+PAGES = list(PAGES_BASE)  # main() adds Ask after Latest when settings.chat is on
 LAYOUT = (ROOT / "template" / "layout.html").read_text()
 WORKBENCH = False  # True when building your own copy (python build.py --workbench), see workbench.py
 WB_REPORT = None   # what the workbench changed from the defaults
@@ -1511,8 +1514,10 @@ def main():
     else:
         SITE_DIR, HIST = ROOT / "site", ROOT / "history"
     s = cfg["settings"]
-    global SITE_URL, CLIPS_ON, TABS, REPO_URL, LICENSE_NAME, FEEDS_ON
+    global SITE_URL, CLIPS_ON, CHAT_ON, TABS, REPO_URL, LICENSE_NAME, FEEDS_ON
     CLIPS_ON = bool(s.get("clips", False))
+    CHAT_ON = bool(s.get("chat", False))
+    PAGES[:] = PAGES_BASE[:2] + ([("chat.html", "ask", "Ask")] if CHAT_ON else []) + PAGES_BASE[2:]
     TABS = [t for t in TABS_ALL if CLIPS_ON or t[0] != "posts"]
     SITE_URL = (s.get("base_url") or "").strip()
     FEEDS_ON = bool(SITE_URL)
@@ -1702,6 +1707,9 @@ def main():
         "settings.html": (f"Settings · {SITE_NAME}", "settings", (ROOT / "template" / "settings.html").read_text()),
         "fork.html": (f"Run your own · {SITE_NAME}", "fork", fill_repo((ROOT / "template" / "fork.html").read_text())),
     }
+    if CHAT_ON:
+        pages["chat.html"] = (f"Ask · {SITE_NAME}", "ask", (ROOT / "template" / "chat.html").read_text()
+                              .replace("{chat_port}", str(int(s.get("chat_port", 8770)))).replace("{model_name}", e(re.sub(r"[-_]Q\d.*$", "", Path(s.get("chat_model", "")).stem).replace("-", " ") or "a small open model")))
     if WORKBENCH:
         pages["manage.html"] = (f"Manage sources · {SITE_NAME}", "manage", (ROOT / "template" / "manage.html").read_text())
         pages["manage-readonly.html"] = (f"Manage sources · {SITE_NAME}", "manage",
@@ -1715,7 +1723,7 @@ def main():
         previous = {}
     write_atomic(site / "data" / "headlines.json", headlines_json(head_rows, latest_days))
     write_atomic(health_path, json.dumps({"built": built, "sources": source_health(cfg, built, previous)}, separators=(",", ":")))
-    for asset in ("style.css", "app.js", "clips.js", "latest.js"):
+    for asset in ("style.css", "app.js", "clips.js", "latest.js") + (("chat.js",) if CHAT_ON else ()):
         write_atomic(site / asset, (ROOT / "template" / asset).read_text())
     shutil.copytree(ROOT / "template" / "vendor", site / "vendor", dirs_exist_ok=True)
     for name, (title, key, content) in pages.items():

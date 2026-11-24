@@ -1,0 +1,28 @@
+<div class="page" id="ask" data-port="{chat_port}">
+<h1>Ask</h1>
+<p class="lede">Questions about today's stories, answered on this computer by an open model. Nothing leaves it.</p>
+<form id="askForm" autocomplete="off">
+<label class="sr" for="askQ">Your question</label>
+<div class="ask-row"><input id="askQ" name="q" type="text" maxlength="300" enterkeyhint="send" autocapitalize="sentences" placeholder="Ask about a story, or which stories a side missed" disabled><button class="btn primary" id="askGo" type="submit" disabled>Ask</button><button class="btn" id="askStop" type="button" hidden>Stop</button></div>
+</form>
+<p class="ask-eg" id="askEx" hidden></p>
+<p class="status-line" id="askStatus" role="status" aria-live="polite"></p>
+<div class="ask-off" id="askOff" hidden></div>
+<section class="ask-out" id="askOut" hidden aria-label="Answer">
+<p class="ask-text" id="askText"></p>
+<p class="ask-by" id="askBy"></p>
+<div class="ask-more" id="askMore" hidden>
+<button class="btn" id="askWrite" type="button">Compare how each side worded it</button>
+<p class="ask-text" id="askWriteText"></p>
+<p class="ask-by" id="askWriteBy">The model reads the top story's headlines. About a minute on an older computer.</p>
+</div>
+<div class="stories ask-stories" id="askSources"></div>
+</section>
+<details class="ask-how">
+<summary>How this works</summary>
+<p>Questions that are really lookups, like which stories a side missed, which ran only on one side, who reported first or what is newest, are counted from the data by code, instantly, with no model. Anything else is matched to today's stories, and you get the story's stored summary at once. {model_name} writes only if you ask it to compare how the sides worded a story, or when a story has no summary yet. It answers one question at a time, remembers nothing, and your questions are not logged or sent anywhere.</p>
+<p>Every rule, with what it cannot tell you: <a href="methods.html#ask">how the Ask page works</a>.</p>
+</details>
+<noscript><p class="empty">This page needs JavaScript. The <a href="index.html">News page</a> shows every story and who covered it without it.</p></noscript>
+</div>
+<script src="chat.js" defer></script>
