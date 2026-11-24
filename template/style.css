@@ -656,3 +656,26 @@ a.c-label:hover{text-decoration:underline}
 .keys dt{white-space:nowrap}
 .keys dd{margin:0;color:var(--ink-2);text-align:right}
 kbd{display:inline-block;min-width:22px;padding:1px 6px;border:1px solid var(--line-2);border-radius:6px;background:var(--bg);font:600 12px var(--font);text-align:center}
+
+/* Ask page */
+.ask-row{display:flex;gap:8px}
+.ask-row input{flex:1;min-width:0}
+.ask-row .btn{flex:none}
+.ask-text{margin:8px 0;max-width:62ch;font-size:17px;line-height:1.55;white-space:pre-wrap}
+.ask-text .cite{color:var(--accent);font-weight:600;text-decoration:none;padding:0 1px}
+.ask-text .cite:hover{text-decoration:underline}
+.ask-off{margin:12px 0;padding:4px 16px 12px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius)}
+.ask-cmd{margin:8px 0 0;padding:10px 12px;background:var(--bg);border:1px solid var(--line);border-radius:8px;font:14px ui-monospace,SFMono-Regular,Menlo,monospace;overflow-x:auto}
+.ask-story{margin:10px 0;padding:14px 16px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius)}
+.ask-story:target{border-color:var(--accent)}
+.ask-story h3{margin:0 0 8px;font-size:16px;line-height:1.35}
+.ask-story h3 a{color:var(--ink);text-decoration-color:var(--accent);text-underline-offset:3px}
+.ask-n{margin-right:6px;color:var(--accent);font-weight:700}
+.ask-cov{margin:0 0 4px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.ask-heads summary{min-height:44px;display:flex;align-items:center;cursor:pointer;font-size:14px;font-weight:600;color:var(--ink-2)}
+.ask-side{margin:4px 0 10px;padding-left:10px;border-left:3px solid var(--c)}
+.ask-side h4{margin:0 0 4px;font-size:13px;color:var(--c-ink)}
+.ask-side ul{margin:0;padding:0;list-style:none;font-size:14px;line-height:1.45}
+.ask-side li{padding:3px 0}
+.ask-side li a{color:var(--ink)}
+@media (max-width:520px){.ask-row{flex-wrap:wrap}.ask-row input{flex-basis:100%}.ask-row .btn{flex:1}}

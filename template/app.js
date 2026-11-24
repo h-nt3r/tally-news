@@ -654,4 +654,12 @@
       check();
     }
   }
+
+  /* The Ask page needs the model on your own computer, so a hosted copy of the site does not offer it in the menu. */
+  (function () {
+    var h = location.hostname;
+    if (h === "localhost" || /^(127|10|192\.168|169\.254)\./.test(h) || /^172\.(1[6-9]|2\d|3[01])\./.test(h) || /\.local$/.test(h) || location.protocol === "file:") return;
+    var a = document.querySelector('nav.primary a[href$="chat.html"]');
+    if (a) a.hidden = true;
+  })();
 })();

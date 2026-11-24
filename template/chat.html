@@ -1,0 +1,21 @@
+<div class="page" id="ask" data-port="{chat_port}">
+<h1>Ask</h1>
+<p class="lede">Ask about today's news. A small open model, <b>{model_name}</b>, writes the answer on this computer from the stories on this site. Nothing goes to Google, Anthropic, OpenAI or anyone else, and your question is not logged. Who covered each story, and on which side, is copied from the data, never written by the model.</p>
+<form class="find ask-form" id="askForm" autocomplete="off">
+<label for="askQ">Your question</label>
+<div class="ask-row"><input id="askQ" name="q" type="text" maxlength="300" enterkeyhint="send" autocapitalize="sentences" placeholder="for example: what happened at O'Hare?" disabled><button class="btn primary" id="askGo" type="submit" disabled>Ask</button><button class="btn" id="askStop" type="button" hidden>Stop</button></div>
+<span class="hint">One question at a time. It does not remember earlier ones. Name a person, place or event in the news; an answer can take a minute or more on an older computer.</span>
+</form>
+<div class="c-filter" id="askEx" role="group" aria-label="Example questions"></div>
+<p class="status-line" id="askStatus" role="status" aria-live="polite"></p>
+<div class="ask-off" id="askOff" hidden></div>
+<section class="ask-out" id="askOut" hidden aria-label="Answer">
+<h2>Answer</h2>
+<p class="ask-text" id="askText"></p>
+<p class="muted-note" id="askNote" hidden>Written by a small model from the stories below and not checked. It can be wrong or leave things out, so open the stories to see the headlines for yourself.</p>
+<h2 id="askSrcHead" hidden>Stories it used</h2>
+<div id="askSources"></div>
+</section>
+<noscript><p class="empty">This page needs JavaScript. The <a href="index.html">News page</a> shows every story and who covered it without it.</p></noscript>
+</div>
+<script src="chat.js" defer></script>

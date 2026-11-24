@@ -19,6 +19,12 @@
 #   ./schedule.sh workbench-status           is it running, and how fresh is its page?
 #   ./schedule.sh workbench-uninstall        stop it and remove the job
 #
+# The Ask page's helper (chat_server.py; see the README) has its own job:
+#   ./schedule.sh chat-install          keep the helper running; only this Mac can use it
+#   ./schedule.sh chat-install --lan    same, but a phone on your Wi-Fi can use it too (needed to ask from a phone)
+#   ./schedule.sh chat-status           is it running, and is the model loaded?
+#   ./schedule.sh chat-uninstall        stop it and remove the job
+#
 # On a Linux machine, run `.venv/bin/python build.py` from cron instead (see the Fork it page).
 cd "$(dirname "$0")" || exit 1
 ROOT=$(pwd)
@@ -30,6 +36,8 @@ DOMAIN="gui/$(id -u)"
 PORT=8765
 EVERY=300       # seconds between rebuilds of the main site (a build takes a minute or two; launchd never starts a second one while one runs)
 WB_EVERY=1200   # seconds between workbench rebuilds
+CHAT=local.opennews.chat
+CHAT_PORT=8770
 SUMMARIZE=local.opennews.summaries
 SUM_EVERY=600   # seconds between summary runs (each one writes the few summaries that are missing; see summary_per_build)
 
@@ -106,6 +114,25 @@ write_workbench_plist() {  # $1 = extra argument ("--lan" or nothing)
   <key>ProcessType</key><string>Background</string>
   <key>StandardErrorPath</key><string>$ROOT/logs/workbench.log</string>
   <key>StandardOutPath</key><string>$ROOT/logs/workbench.log</string>
+</dict></plist>
+EOF
+}
+
+write_chat_plist() {  # $1 = extra argument ("--lan" or nothing). The helper itself loads the model only while questions are being asked
+  cat > "$AGENTS/$CHAT.plist" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>$CHAT</string>
+  <key>ProgramArguments</key><array>
+    <string>$ROOT/.venv/bin/python</string><string>chat_server.py</string>$([ -n "$1" ] && printf '<string>%s</string>' "$1")
+  </array>
+  <key>WorkingDirectory</key><string>$ROOT</string>
+  <key>KeepAlive</key><true/>
+  <key>RunAtLoad</key><true/>
+  <key>ProcessType</key><string>Interactive</string>
+  <key>StandardErrorPath</key><string>$ROOT/logs/chat.log</string>
+  <key>StandardOutPath</key><string>$ROOT/logs/chat.log</string>
 </dict></plist>
 EOF
 }
@@ -249,7 +276,53 @@ case "$1" in
     rm -f "${AGENTS:?}/$WORKBENCH.plist"
     echo "Removed the workbench job. Your changes (workbench/changes.toml) stay; use ./workbench.sh to run it by hand."
     ;;
+  chat-install)
+    need_mac
+    [ -x .venv/bin/python ] || { echo "Run the first-time setup in README.md first (python3 -m venv .venv ...)."; exit 1; }
+    mkdir -p "$AGENTS" logs
+    [ -f logs/chat.log ] && [ "$(wc -c < logs/chat.log)" -gt 1000000 ] && : > logs/chat.log
+    held=$(lsof -nP -iTCP:$CHAT_PORT -sTCP:LISTEN 2>/dev/null | tail -n +2 | grep -v "local.opennews" || true)
+    if [ -n "$held" ]; then
+      echo "Port $CHAT_PORT is already in use (probably ./chat.sh running in a terminal). Stop it (Ctrl+C) and run this again:"
+      echo "$held"
+      exit 1
+    fi
+    ARG=""
+    [ "$2" = "--lan" ] && ARG="--lan"
+    write_chat_plist "$ARG"
+    load $CHAT
+    echo "Installed. The Ask helper is running; it loads the model when the first question arrives and lets it go after a quiet spell."
+    echo "Ask on this Mac:  http://localhost:$PORT/chat.html"
+    if [ -n "$ARG" ]; then
+      IP=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null)
+      echo "Ask on your phone (same Wi-Fi):  http://${IP:-<your-mac-ip>}:$PORT/chat.html   (the news site itself must be installed with --lan too)"
+      echo "Anyone on this Wi-Fi can ask it questions, which uses this Mac's processor. Don't use this on public Wi-Fi."
+    else
+      echo "Only this Mac can use it. Use --lan to ask from your phone."
+    fi
+    echo "Check on it any time with: ./schedule.sh chat-status"
+    ;;
+  chat-status)
+    need_mac
+    if launchctl print "$DOMAIN/$CHAT" >/dev/null 2>&1; then
+      echo "$CHAT: installed"
+      launchctl print "$DOMAIN/$CHAT" | grep -E "^\s+(state|runs|last exit code) =" | sed 's/^/    /'
+      launchctl print "$DOMAIN/$CHAT" | grep -q -- "--lan" && echo "    reachable from your Wi-Fi (--lan)" || echo "    this Mac only"
+    else
+      echo "$CHAT: not installed"
+    fi
+    curl -s -m 3 "http://localhost:$CHAT_PORT/api/status" | .venv/bin/python -c "import sys,json
+try: d=json.load(sys.stdin)
+except ValueError: sys.exit('Helper did not answer on port $CHAT_PORT.')
+print('Model', d['model'], 'installed' if d['installed'] else 'NOT installed', '| loaded now' if d['running'] else '| not loaded (it loads on the first question)', '|', d['stories'], 'stories')" 2>&1 | sed 's/^/    /'
+    ;;
+  chat-uninstall)
+    need_mac
+    launchctl bootout "$DOMAIN/$CHAT" 2>/dev/null
+    rm -f "${AGENTS:?}/$CHAT.plist"
+    echo "Removed the Ask helper job. Use ./chat.sh to run it by hand."
+    ;;
   *)
-    sed -n '2,23p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,28p' "$0" | sed 's/^# \{0,1\}//'
     ;;
 esac
