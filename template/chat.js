@@ -17,7 +17,7 @@
   var touch = window.matchMedia && matchMedia("(pointer: coarse)").matches;  /* a phone or tablet: do not pop the keyboard up on its own */
   var api = location.protocol + "//" + location.hostname + ":" + root.getAttribute("data-port");
   var SIDE = {left: "Left", center: "Center", right: "Right"}, LEANS = ["left", "center", "right"];
-  var ctl = null, timer = null, t0 = 0, label = "", answer = "", writeAns = "", n = 0, mode = "", model = "", note = "", lastQ = "";
+  var showFirst = false, ctl = null, timer = null, t0 = 0, label = "", answer = "", writeAns = "", n = 0, mode = "", model = "", note = "", lastQ = "";
   var HINT = writeBy.textContent;
 
   function el(tag, cls, txt) {
@@ -48,6 +48,13 @@
   function tick() {
     var s = Math.round((Date.now() - t0) / 1000);
     status.textContent = label + (label ? " " : "") + "(" + s + " s)";
+  }
+  /* "3 h ago" for a feed time like 2026-11-23T14:14:40Z (the same wording chat.py uses) */
+  function ago(iso) {
+    var t = Date.parse(iso);
+    if (isNaN(t)) return "at an unknown time";
+    var s = Math.max(0, Math.round((Date.now() - t) / 1000));
+    return s < 90 ? "just now" : s < 3600 ? Math.floor(s / 60) + " min ago" : s < 172800 ? Math.floor(s / 3600) + " h ago" : Math.floor(s / 86400) + " d ago";
   }
   function modelName() { return model.replace(/[-_]Q\d.*$/, "").replace(/-/g, " ") || "the model"; }
 
@@ -90,7 +97,12 @@
     var head = el("button", "s-head"); head.type = "button"; head.setAttribute("aria-expanded", "false"); head.setAttribute("aria-controls", "p-ask" + s.n);
     var main = el("span", "s-main"), title = el("span", "s-title");
     title.appendChild(el("span", "ask-n", "[" + s.n + "]")); title.appendChild(document.createTextNode(s.label));
-    main.appendChild(title); head.appendChild(main);
+    main.appendChild(title);
+    if (showFirst && s.first && s.first.at) {  /* who published first, as a line under the title, so it reads without opening the row */
+      var fl = el("span", "s-flag"); fl.appendChild(el("span", "s-ago", "First reported " + ago(s.first.at) + " by " + s.first.outlet + " (" + s.first.side + ")"));
+      main.appendChild(fl);
+    }
+    head.appendChild(main);
     var sum = el("span", "s-sum"), bar = el("span", "bar");
     bar.setAttribute("role", "img");
     bar.setAttribute("aria-label", "Outlets covering this story: left " + c.left + ", center " + c.center + ", right " + c.right);
@@ -137,7 +149,7 @@
 
   function handle(ev) {
     if (ev.type === "sources") {
-      mode = ev.mode; model = ev.model || ""; note = ev.note || ""; n = ev.stories.length;
+      mode = ev.mode; model = ev.model || ""; note = ev.note || ""; n = ev.stories.length; showFirst = !!ev.show_first;
       srcBox.textContent = ""; ev.stories.forEach(function (s) { srcBox.appendChild(row(s)); });
       out.hidden = false; caption(false); more.hidden = !ev.can_write;
       label = mode === "list" || mode === "none" || mode === "summary" ? "" : "Reading " + n + (n === 1 ? " story" : " stories");

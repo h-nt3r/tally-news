@@ -358,7 +358,7 @@ class Handler(BaseHTTPRequestHandler):
         else:
             prep = chat.prepare(question, APP.stories(), APP.system)
             self._event({"type": "sources", "mode": prep["mode"], "stories": prep["sources"], "model": prep.get("model") or APP.model.name,
-                         "note": prep.get("note"), "can_write": bool(prep.get("can_write"))})
+                         "note": prep.get("note"), "can_write": bool(prep.get("can_write")), "show_first": bool(prep.get("show_first"))})
             if prep["prompt"] is None:  # a lookup counted by code, a stored summary, or nothing matched: the model is not needed
                 self._event({"type": "text", "text": prep["text"] or chat.NOT_COVERED})
                 return self._event({"type": "done"})

@@ -20,12 +20,8 @@
 </section>
 <details class="ask-how">
 <summary>How this works</summary>
-<ol>
-<li><b>Counting.</b> Questions like "which stories did the left miss?" are answered by code counting the data, instantly. No model is involved.</li>
-<li><b>Matching.</b> Other questions are matched to today's stories by shared words. If nothing matches, you get "That is not in today's coverage." If a matched story already has its summary, you get that at once.</li>
-<li><b>Writing.</b> Only when you ask, or when a story has no summary yet, {model_name} reads the best story's headlines, grouped by side without outlet names, and writes a few sentences. It can be wrong, so every answer lists the stories it used.</li>
-</ol>
-<p>It answers one question at a time and remembers nothing. Your questions are not logged or sent anywhere. Rules and instructions: <code>config/chat_prompt.txt</code>.</p>
+<p>Questions that are really lookups, like which stories a side missed, which ran only on one side, who reported first or what is newest, are counted from the data by code, instantly, with no model. Anything else is matched to today's stories, and you get the story's stored summary at once. {model_name} writes only if you ask it to compare how the sides worded a story, or when a story has no summary yet. It answers one question at a time, remembers nothing, and your questions are not logged or sent anywhere.</p>
+<p>Every rule, with what it cannot tell you: <a href="methods.html#ask">how the Ask page works</a>.</p>
 </details>
 <noscript><p class="empty">This page needs JavaScript. The <a href="index.html">News page</a> shows every story and who covered it without it.</p></noscript>
 </div>

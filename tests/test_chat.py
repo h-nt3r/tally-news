@@ -1,6 +1,7 @@
 """Ask: which stories a question picks, what the page is shown, what the model is shown, and the helper's guards.
 The model itself is never run."""
 import json, sys, tempfile, unittest
+from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -54,22 +55,26 @@ class Retrieval(unittest.TestCase):
         self.assertEqual(chat.retrieve("anything", []), ([], "none"))
 
 
-def lookup_story(sid, label, left, center, right, missing=()):
+def lookup_story(sid, label, left, center, right, missing=(), first=None):
     reps = ([rep(f"L{i}", "left", f"{label} L{i}") for i in range(left)] + [rep(f"C{i}", "center", f"{label} C{i}") for i in range(center)]
             + [rep(f"R{i}", "right", f"{label} R{i}") for i in range(right)])
     return {"id": sid, "page": f"story/{sid}.html", "label": label, "outlets": len(reps), "not_covered_by": list(missing),
-            "by_side": {"left": left, "center": center, "right": right}, "reports": reps}
+            "by_side": {"left": left, "center": center, "right": right}, "reports": reps,
+            "first_reported": ({"outlet": first[0], "side": first[1], "at": first[2]} if first else None)}
 
 
-LOOKUP = [lookup_story("s1", "Budget vote", 2, 3, 2), lookup_story("s2", "Border talks", 0, 2, 3, ["left"]),
-          lookup_story("s3", "Storm damage", 0, 0, 3, ["left", "center"]), lookup_story("s4", "Space launch", 3, 1, 0, ["right"]),
-          lookup_story("s5", "Trade deal Iran", 0, 1, 3, ["left"])]
+NOW = datetime(2026, 11, 23, 12, 0, 0, tzinfo=timezone.utc)
+LOOKUP = [lookup_story("s1", "Budget vote", 2, 3, 2, first=("Alpha", "left", "2026-11-23T08:00:00Z")),
+          lookup_story("s2", "Border talks", 0, 2, 3, ["left"], first=("Beta", "center", "2026-11-23T09:00:00Z")),
+          lookup_story("s3", "Storm damage", 0, 0, 3, ["left", "center"], first=("Gamma", "right", "2026-11-23T11:30:00Z")),
+          lookup_story("s4", "Space launch", 3, 1, 0, ["right"], first=("Delta", "left", "2026-11-23T07:00:00Z")),
+          lookup_story("s5", "Trade deal Iran", 0, 1, 3, ["left"], first=("Epsilon", "right", "2026-11-23T10:00:00Z"))]
 
 
 class Lookups(unittest.TestCase):
     """Questions that are counting, not language: answered by code, never by the model."""
     def ask(self, q):
-        r = chat.structured(q, LOOKUP)
+        r = chat.structured(q, LOOKUP, NOW)
         return None if r is None else (r[0], [s["id"] for s in r[1]])
 
     def test_only_one_side(self):
@@ -110,12 +115,55 @@ class Lookups(unittest.TestCase):
 
     def test_long_lists_are_cut_and_say_so(self):
         many = [lookup_story(f"m{i}", f"Topic {i}", 0, 3, 3, ["left"]) for i in range(11)]
-        text, shown, _ = chat.structured("stories the left missed", many)
+        text, shown, _, _ = chat.structured("stories the left missed", many)
         self.assertEqual((len(shown), text.startswith("11 stories had no coverage"), "Showing the first 8" in text), (8, True, True))
 
+    def test_the_center_is_counted_by_the_same_three_outlet_rule(self):
+        # the News page never flags a center gap, so s3 (3 outlets, none center) and s4 (4 outlets, one center) differ
+        self.assertEqual(self.ask("Which stories did the center miss?"), ("1 story had no coverage from center outlets.", ["s3"]))
+        self.assertIn("flags only left and right", chat.structured("Which stories did the center miss?", LOOKUP, NOW)[2])
+
+    def test_newest_sorts_by_first_report(self):
+        for q in ("What are the newest stories?", "What's new?", "What happened recently?", "latest stories", "what just broke"):
+            text, ids = self.ask(q)
+            self.assertEqual(ids, ["s3", "s5", "s2", "s1", "s4"], q)
+        self.assertEqual(self.ask("What are the newest stories?")[0], "The 5 stories first reported most recently, newest first.")
+
+    def test_newest_with_a_topic_is_a_topic_question(self):
+        self.assertIsNone(self.ask("What is the latest news on the border talks?"))
+
+    def test_who_reported_a_story_first(self):
+        self.assertEqual(self.ask("Who reported the border talks first?"), ("Beta, a center outlet, reported it first, 3 h ago.", ["s2"]))
+        self.assertEqual(self.ask("Who broke the storm damage story?")[0], "Gamma, a right outlet, reported it first, 30 min ago.")
+
+    def test_who_reported_first_without_a_topic_lists_the_stories(self):
+        text, ids = self.ask("Who reported it first?")
+        self.assertEqual(ids, ["s1", "s2", "s3", "s4", "s5"])
+        self.assertEqual(text.splitlines()[0], "Who reported each of these 5 stories first:")
+        self.assertEqual(text.splitlines()[3], "[3] Gamma (right), 30 min ago")
+
+    def test_stories_a_side_reported_first(self):
+        self.assertEqual(self.ask("Which stories did the right report first?"), ("2 stories were first reported by a right outlet.", ["s3", "s5"]))
+
+    def test_which_side_usually_reports_first_is_a_tally(self):
+        text, ids = self.ask("Which side usually reports first?")
+        self.assertEqual((ids, text), ([], "Across today's 5 stories, the first report came from a left outlet in 2, a right outlet in 2 and a center outlet in 1."))
+
+    def test_first_alone_is_not_a_lookup(self):
+        for q in ("What did the first lady say?", "How did the budget vote go the first time?"):
+            self.assertIsNone(self.ask(q), q)
+
+    def test_first_and_newest_lookups_say_what_first_means(self):
+        self.assertIn("first among the outlets this site reads", chat.structured("Who reported it first?", LOOKUP, NOW)[2])
+        self.assertIn("not moved", chat.structured("newest stories", LOOKUP, NOW)[2])
+
+    def test_the_age_wording(self):
+        ages = [chat._age(t, NOW) for t in ("2026-11-23T11:59:30Z", "2026-11-23T11:15:00Z", "2026-11-23T05:00:00Z", "2026-11-19T12:00:00Z", "junk")]
+        self.assertEqual(ages, ["just now", "45 min ago", "7 h ago", "4 d ago", "at an unknown time"])
+
     def test_prepare_uses_no_model_for_a_lookup(self):
-        prep = chat.prepare("What stories did the left miss?", LOOKUP, "SYS")
-        self.assertEqual((prep["mode"], prep["prompt"]), ("list", None))
+        prep = chat.prepare("What stories did the left miss?", LOOKUP, "SYS", NOW)
+        self.assertEqual((prep["mode"], prep["prompt"], prep["show_first"]), ("list", None, False))
         self.assertIn("3 or more outlets", prep["note"])
         self.assertEqual([c["id"] for c in prep["sources"]], ["s2", "s3", "s5"])
 

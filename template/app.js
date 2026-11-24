@@ -464,7 +464,7 @@
   var zones = document.querySelectorAll(".tz");
   for (var zi = 0; zi < zones.length; zi++) { try { zones[zi].textContent = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (err) {} }
   var cite = document.getElementById("cite");
-  if (cite) {
+  if (cite && document.getElementById("copyCite")) {  /* the Methods page has a heading with this id and no copy button */
     var template = cite.textContent;
     var local = /^file:$/.test(location.protocol) || /^(localhost$|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|.*\.local$)/.test(location.hostname);
     var fill = function () {
