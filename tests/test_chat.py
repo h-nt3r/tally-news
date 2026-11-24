@@ -54,6 +54,72 @@ class Retrieval(unittest.TestCase):
         self.assertEqual(chat.retrieve("anything", []), ([], "none"))
 
 
+def lookup_story(sid, label, left, center, right, missing=()):
+    reps = ([rep(f"L{i}", "left", f"{label} L{i}") for i in range(left)] + [rep(f"C{i}", "center", f"{label} C{i}") for i in range(center)]
+            + [rep(f"R{i}", "right", f"{label} R{i}") for i in range(right)])
+    return {"id": sid, "page": f"story/{sid}.html", "label": label, "outlets": len(reps), "not_covered_by": list(missing),
+            "by_side": {"left": left, "center": center, "right": right}, "reports": reps}
+
+
+LOOKUP = [lookup_story("s1", "Budget vote", 2, 3, 2), lookup_story("s2", "Border talks", 0, 2, 3, ["left"]),
+          lookup_story("s3", "Storm damage", 0, 0, 3, ["left", "center"]), lookup_story("s4", "Space launch", 3, 1, 0, ["right"]),
+          lookup_story("s5", "Trade deal Iran", 0, 1, 3, ["left"])]
+
+
+class Lookups(unittest.TestCase):
+    """Questions that are counting, not language: answered by code, never by the model."""
+    def ask(self, q):
+        r = chat.structured(q, LOOKUP)
+        return None if r is None else (r[0], [s["id"] for s in r[1]])
+
+    def test_only_one_side(self):
+        self.assertEqual(self.ask("What stories have been reported only by the right?"), ("1 story was reported only by right outlets.", ["s3"]))
+
+    def test_only_a_side_with_none_says_so(self):
+        self.assertEqual(self.ask("Which stories were only covered by the left?"), ("No story today was reported only by left outlets.", []))
+
+    def test_missed_by_a_side(self):
+        for q in ("What stories did the left miss?", "Which stories did the left not cover?", "stories the left ignored", "left blindspots"):
+            self.assertEqual(self.ask(q)[1], ["s2", "s3", "s5"], q)
+        self.assertEqual(self.ask("What stories did the left miss?")[0], "3 stories had no coverage from left outlets.")
+
+    def test_missed_by_one_side_and_covered_by_another(self):
+        self.assertEqual(self.ask("What did the right miss that the left covered?")[1], ["s4"])
+
+    def test_blindspots_without_a_side(self):
+        self.assertEqual(self.ask("Show me the blindspots")[1], ["s2", "s3", "s4", "s5"])
+
+    def test_covered_by_all_sides(self):
+        self.assertEqual(self.ask("Which stories did all three sides cover?"), ("1 story was covered by left, center and right outlets.", ["s1"]))
+
+    def test_overview_is_the_top_of_the_list(self):
+        for q in ("What are the main stories right now?", "What's happening right now?", "top stories"):
+            self.assertEqual(self.ask(q)[1], ["s1", "s2", "s3", "s4", "s5"], q)
+
+    def test_right_now_is_not_the_right(self):
+        self.assertEqual(chat.sides_in("What is happening right now?"), [])
+        self.assertEqual(chat.sides_in("What did the right and the centre say?"), ["right", "center"])
+
+    def test_extra_words_narrow_the_list(self):
+        text, ids = self.ask("Which stories did the left miss about Iran?")
+        self.assertEqual((text, ids), ("1 story matching your words had no coverage from left outlets.", ["s5"]))
+
+    def test_a_topic_question_is_not_a_lookup(self):
+        for q in ("How did the left and right cover the budget vote?", "What happened with the space launch?", "Who won the world series?"):
+            self.assertIsNone(self.ask(q), q)
+
+    def test_long_lists_are_cut_and_say_so(self):
+        many = [lookup_story(f"m{i}", f"Topic {i}", 0, 3, 3, ["left"]) for i in range(11)]
+        text, shown, _ = chat.structured("stories the left missed", many)
+        self.assertEqual((len(shown), text.startswith("11 stories had no coverage"), "Showing the first 8" in text), (8, True, True))
+
+    def test_prepare_uses_no_model_for_a_lookup(self):
+        prep = chat.prepare("What stories did the left miss?", LOOKUP, "SYS")
+        self.assertEqual((prep["mode"], prep["prompt"]), ("list", None))
+        self.assertIn("3 or more outlets", prep["note"])
+        self.assertEqual([c["id"] for c in prep["sources"]], ["s2", "s3", "s5"])
+
+
 class WhatThePageShows(unittest.TestCase):
     def test_coverage_is_copied_from_the_data(self):
         c = chat.coverage(STORIES[1], 1)

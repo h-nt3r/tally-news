@@ -1,6 +1,8 @@
 """Ask: questions answered from the stories on this site, written by a small open model on your own computer.
 
 How an answer is made, in order, with no hidden steps:
+  0. COUNT: a question that is really a lookup ("which stories did the right miss?", "stories only the left covered", "what are
+     the main stories?") is answered by plain code filtering the data. No model, so it is instant and exact.
   1. RETRIEVE: the question is matched to the stories in data/latest.json by shared words (TF-IDF, the same kind of
      matching the site uses to group stories). The best few stories are picked. If nothing matches well, the model
      is not called at all and the answer is "That is not in today's coverage."
@@ -53,6 +55,76 @@ def load_stories(path):
         return json.loads(Path(path).read_text()).get("stories", [])
     except (OSError, ValueError):
         return []
+
+
+# ---- questions that are lookups, not language tasks ----
+LIST_MAX = 8
+MISS_NOTE = "A side counts as missing only when 3 or more outlets covered the story, the same rule as the News page."
+_ONLY = re.compile(r"\b(only|exclusively|solely|just)\b")
+_MISS = re.compile(r"\b(not covered|not cover|did ?n[o']?t cover|do ?n[o']?t cover|never cover\w*|have ?n[o']?t cover\w*|miss(?:ed|es|ing)?|ignor\w+|silent|silence|"
+                   r"skipp\w+|no coverage|without coverage|blind ?spots?|neglect\w+|left out|overlook\w+|lack\w*|absent)\b")
+_ALL = re.compile(r"\b(all (three )?sides|every side|all three|across the (political )?spectrum|everyone covered|bipartisan|left,? (center|centre),? and right)\b")
+_TOP = re.compile(r"\b(main|top|biggest|major|leading|most[- ]covered|biggest|headline)\b.*\b(news|stories|story|headlines)\b|\bwhat(?:'s| is) (?:happening|going on|new|in the news)\b|"
+                  r"\bmost[- ]covered\b|\bwhat happened today\b")
+_NOT_A_SIDE = re.compile(r"\bright (now|away|after|before|here|there|to|of|about)\b")
+_STRUCT = {stem(w) for w in ("only exclusively solely just not never miss missed missing ignore ignored ignoring skipped silent silence blindspot blindspots blind "
+                             "spot spots without lack lacking lacks absent overlooked neglected didn didnt don dont haven havent doesn wasn weren "
+                             "sides side three every everyone spectrum political bipartisan which what stories story show list").split()}
+
+
+def sides_in(question):
+    """The sides a question names, in order. 'right now' is not a side."""
+    q = _NOT_A_SIDE.sub(" ", question.lower())
+    out = []
+    for w in re.findall(r"[a-z]+", q):
+        side = "center" if w in ("center", "centre") else w if w in SIDES else None
+        if side and side not in out:
+            out.append(side)
+    return out
+
+
+def _noun(n, one, many):
+    return f"{n} {one if n == 1 else many}"
+
+
+def structured(question, stories):
+    """A lookup answered by counting: returns (text, picked stories, note) or None when the question is about a topic or needs words.
+    Wording is fixed here, so the reader can see exactly what was counted."""
+    q = question.lower().replace("\u2019", "'")
+    sides = sides_in(q)
+    topic = [t for t in tokens(q) if t not in _STRUCT]
+    if _ALL.search(q) and not sides_in(_ALL.sub(" ", q)):
+        kind, hits, what = "all", [s for s in stories if all(s["by_side"].get(x, 0) for x in SIDES)], "were covered by left, center and right outlets"
+    elif _MISS.search(q) and sides:
+        miss = sides[0]
+        hits = [s for s in stories if miss in s.get("not_covered_by", []) and all(s["by_side"].get(x, 0) for x in sides[1:])]
+        kind, what = "miss", f"had no coverage from {miss} outlets"
+    elif _MISS.search(q):
+        kind, hits, what = "miss", [s for s in stories if s.get("not_covered_by")], "had no coverage from at least one side"
+    elif _ONLY.search(q) and sides:
+        only = sides[0]
+        hits = [s for s in stories if s["by_side"].get(only, 0) and not any(s["by_side"].get(x, 0) for x in SIDES if x != only)]
+        kind, what = "only", f"were reported only by {only} outlets"
+    elif not topic and (_TOP.search(q) or not sides):
+        kind, hits, what = "top", list(stories), None
+    else:
+        return None
+    about = ""
+    if topic and kind != "top":  # "stories only the right covered about Iran": keep the ones that match the rest of the words
+        terms = set(topic)
+        hits = [s for s in hits if len(terms & set(tokens(story_text(s)))) / len(terms) >= MIN_SHARE]
+        about = " matching your words"
+    if kind == "top":
+        n = min(LIST_MAX, len(hits))
+        return (f"The {_noun(n, 'story', 'stories')} covered by the most outlets right now, most first." if n else NOT_COVERED), hits[:LIST_MAX], None
+    n, shown = len(hits), hits[:LIST_MAX]
+    if not n:
+        if kind == "miss":
+            return f"No story{about} with 3 or more outlets {what.replace('had no coverage from', 'lacked coverage from')}.".replace("outlets lacked", "outlets lacked"), [], MISS_NOTE
+        return f"No story{about} today {what.replace('were', 'was', 1)}.", [], None
+    more = f" Showing the first {LIST_MAX}, most-covered first." if n > LIST_MAX else ""
+    verb = what if n != 1 else what.replace("were", "was", 1)
+    return f"{_noun(n, 'story', 'stories')}{about} {verb}.{more}", shown, (MISS_NOTE if kind == "miss" else None)
 
 
 def story_text(st):
@@ -122,6 +194,12 @@ def build_prompt(question, picked, system, per_side=PER_SIDE):
 
 def prepare(question, stories, system):
     """Everything before the model: what was picked, what the page shows, and the prompt (None when the model is not needed)."""
+    found = structured(question, stories)
+    if found:  # a lookup: counted by code, no model
+        text, picked, note = found
+        return {"mode": "list", "sources": [coverage(st, n) for n, st in enumerate(picked, 1)], "prompt": None, "text": text, "note": note}
     picked, mode = retrieve(question, stories)
+    if mode == "overview":  # nothing in the question to match: show the top stories rather than ask the model to guess
+        picked = picked[:MAX_STORIES]
     return {"mode": mode, "sources": [coverage(st, n) for n, st in enumerate(picked, 1)],
-            "prompt": build_prompt(question, picked, system) if picked else None}
+            "prompt": build_prompt(question, picked, system) if picked else None, "text": None if picked else NOT_COVERED, "note": None}

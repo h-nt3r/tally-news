@@ -350,9 +350,9 @@ class Handler(BaseHTTPRequestHandler):
     def _answer(self, question):
         self._head(200, "application/x-ndjson; charset=utf-8")
         prep = chat.prepare(question, APP.stories(), APP.system)
-        self._event({"type": "sources", "mode": prep["mode"], "stories": prep["sources"], "model": APP.model.name})
-        if prep["prompt"] is None:
-            self._event({"type": "text", "text": chat.NOT_COVERED})
+        self._event({"type": "sources", "mode": prep["mode"], "stories": prep["sources"], "model": APP.model.name, "note": prep.get("note")})
+        if prep["prompt"] is None:  # a lookup counted by code, or nothing matched: the model is not needed
+            self._event({"type": "text", "text": prep["text"] or chat.NOT_COVERED})
             return self._event({"type": "done"})
         if not APP.model.installed():
             return self._event({"type": "error", "text": "The model is not installed yet. The README's \"summaries written on your own computer\" "
