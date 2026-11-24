@@ -279,17 +279,17 @@ class Guards(unittest.TestCase):
 class PhoneOnTheWifi(unittest.TestCase):
     """--lan: a phone on your private network may use the helper from the news site's own address, and nobody else may."""
     def test_lan_addresses_are_accepted_only_when_lan_is_on(self):
-        self.assertTrue(chat_server.host_ok("192.168.0.49:8770", 8770, lan=True))
+        self.assertTrue(chat_server.host_ok("192.168.1.20:8770", 8770, lan=True))
         self.assertTrue(chat_server.host_ok("10.0.0.7:8770", 8770, lan=True))
         self.assertTrue(chat_server.host_ok("172.20.1.2:8770", 8770, lan=True))
         self.assertTrue(chat_server.host_ok("hunters-mac.local:8770", 8770, lan=True))
-        self.assertFalse(chat_server.host_ok("192.168.0.49:8770", 8770))
+        self.assertFalse(chat_server.host_ok("192.168.1.20:8770", 8770))
 
     def test_a_web_address_is_never_accepted_even_if_it_points_at_this_network(self):
         # DNS rebinding: evil.example can be made to resolve to 192.168.x.x, but its Host header still says evil.example
-        for h in ("evil.example:8770", "192.168.0.49.evil.example:8770", "local:8770", ".local:8770", "8.8.8.8:8770", "[::1]:8770"):
+        for h in ("evil.example:8770", "192.168.1.20.evil.example:8770", "local:8770", ".local:8770", "8.8.8.8:8770", "[::1]:8770"):
             self.assertFalse(chat_server.host_ok(h, 8770, lan=True), h)
-        self.assertFalse(chat_server.host_ok("192.168.0.49:9999", 8770, lan=True))
+        self.assertFalse(chat_server.host_ok("192.168.1.20:9999", 8770, lan=True))
 
     def test_only_private_network_devices_may_connect(self):
         self.assertTrue(chat_server.client_ok("127.0.0.1"))
@@ -300,12 +300,12 @@ class PhoneOnTheWifi(unittest.TestCase):
 
     def test_the_page_must_come_from_the_same_address_and_the_sites_port(self):
         ok = lambda o, h: chat_server.origin_ok(o, 8765, h, lan=True)
-        self.assertTrue(ok("http://192.168.0.49:8765", "192.168.0.49:8770"))
+        self.assertTrue(ok("http://192.168.1.20:8765", "192.168.1.20:8770"))
         self.assertTrue(ok("http://hunters-mac.local:8765", "hunters-mac.local:8770"))
-        self.assertFalse(ok("http://192.168.0.50:8765", "192.168.0.49:8770"))   # a page on another device
-        self.assertFalse(ok("http://192.168.0.49:8000", "192.168.0.49:8770"))   # another program on this one
-        self.assertFalse(ok("http://evil.example:8765", "192.168.0.49:8770"))
-        self.assertFalse(chat_server.origin_ok("http://192.168.0.49:8765", 8765, "192.168.0.49:8770"))  # lan off
+        self.assertFalse(ok("http://192.168.1.21:8765", "192.168.1.20:8770"))   # a page on another device
+        self.assertFalse(ok("http://192.168.1.20:8000", "192.168.1.20:8770"))   # another program on this one
+        self.assertFalse(ok("http://evil.example:8765", "192.168.1.20:8770"))
+        self.assertFalse(chat_server.origin_ok("http://192.168.1.20:8765", 8765, "192.168.1.20:8770"))  # lan off
 
 
 class StoriesFile(unittest.TestCase):
